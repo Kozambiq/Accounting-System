@@ -5,6 +5,8 @@ import java.awt.*;
 import java.awt.event.*;
 import net.miginfocom.swing.MigLayout;
 import java.io.InputStream;
+import java.sql.*;
+import java.util.regex.Pattern;
 
 public class signUpPage extends JFrame {
 
@@ -16,105 +18,198 @@ public class signUpPage extends JFrame {
     private Font merriweatherItalic;
     private Font merriweatherBoldItalic;
 
+    // Error labels
+    private JLabel firstNameError;
+    private JLabel lastNameError;
+    private JLabel emailError;
+    private JLabel confirmPasswordError;
+
     public signUpPage() {
         setTitle("Sign Up");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
 
-        // Load all Merriweather fonts from resources
+        // Load fonts
         merriweatherRegular = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Regular.ttf", 14f);
-        merriweatherBold = loadFont("/fonts/Merriweather/Merriweather-Bold.ttf", 14f);
-        merriweatherItalic = loadFont("/fonts/Merriweather/Merriweather-Italic.ttf", 14f);
-        merriweatherBoldItalic = loadFont("/fonts/Merriweather/Merriweather-BoldItalic.ttf", 14f);
+        merriweatherBold = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Bold.ttf", 14f);
+        merriweatherItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Italic.ttf", 14f);
+        merriweatherBoldItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-BoldItalic.ttf", 14f);
 
         // Background panel
-        BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/background.jpg");
+        BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/bg3.jpg");
         setContentPane(backgroundPanel);
 
-        // Rounded card
+        // Card with top padding to push content up
         card = new RoundedPanel();
-        card.setLayout(new MigLayout("wrap 1, gapy 15, align center", "[grow]", "[]"));
-        card.setPreferredSize(new Dimension(400, 700));
+        card.setLayout(new MigLayout("wrap 1, gapy 4, align center, top 50"));
+        card.setPreferredSize(new Dimension(400, 720));
         backgroundPanel.add(card, "center");
 
-        // Logo at top (smaller and spaced)
-        Image logoImg = new ImageIcon(getClass().getResource("/icon/background-logo.png")).getImage();
-        ImageIcon logoIcon = new ImageIcon(logoImg.getScaledInstance(250, 120, Image.SCALE_SMOOTH));
-        JLabel logoLabel = new JLabel(logoIcon);
-        logoLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(logoLabel, "align center, span, wrap 10"); // 10px space below
+        // Logo (kept big)
+        Image logoImg = new ImageIcon(getClass().getResource("/icon/logo.png")).getImage();
+        ImageIcon logoIcon = new ImageIcon(logoImg.getScaledInstance(250, 180, Image.SCALE_SMOOTH));
+        card.add(new JLabel(logoIcon), "wrap 10, pushy 0"); // pushy 0 keeps it from pushing other content down
 
-        // Title & subtitle
+        // Title
         JLabel title = new JLabel("Sign Up");
         title.setFont(merriweatherBold.deriveFont(36f));
         title.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(title, "align center, span, wrap 5");
+        card.add(title, "align center, wrap 0");
 
         JLabel subtitle = new JLabel("Create your account");
         subtitle.setFont(merriweatherRegular.deriveFont(14f));
         subtitle.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(subtitle, "align center, span, wrap 20"); // 20px space below subtitle
+        card.add(subtitle, "align center, wrap 15");
 
-        // Load PNG icons from resources
+        // Icons
         Image userIcon = new ImageIcon(getClass().getResource("/icon/user.png")).getImage();
         Image emailIcon = new ImageIcon(getClass().getResource("/icon/email.png")).getImage();
         Image passwordIcon = new ImageIcon(getClass().getResource("/icon/key.png")).getImage();
         Image eyeOpen = new ImageIcon(getClass().getResource("/icon/eyeOpen.png")).getImage();
         Image eyeClosed = new ImageIcon(getClass().getResource("/icon/eyeClosed.png")).getImage();
 
-        // Input fields
+        // First Name
         IconTextField firstNameField = new IconTextField("First Name", userIcon);
-        firstNameField.setFont(merriweatherRegular.deriveFont(14f));
-        card.add(firstNameField, "w 320!, h 40!, align center");
+        firstNameField.setFont(merriweatherRegular);
+        card.add(firstNameField, "w 320!, h 40!");
+        firstNameError = createErrorLabel();
+        card.add(firstNameError, "w 320!, align left");
 
+        // Last Name
         IconTextField lastNameField = new IconTextField("Last Name", userIcon);
-        lastNameField.setFont(merriweatherRegular.deriveFont(14f));
-        card.add(lastNameField, "w 320!, h 40!, align center");
+        lastNameField.setFont(merriweatherRegular);
+        card.add(lastNameField, "w 320!, h 40!");
+        lastNameError = createErrorLabel();
+        card.add(lastNameError, "w 320!, align left");
 
+        // Email
         IconTextField emailField = new IconTextField("Email", emailIcon);
-        emailField.setFont(merriweatherRegular.deriveFont(14f));
-        card.add(emailField, "w 320!, h 40!, align center");
+        emailField.setFont(merriweatherRegular);
+        card.add(emailField, "w 320!, h 40!");
+        emailError = createErrorLabel();
+        card.add(emailError, "w 320!, align left");
 
-        TogglePasswordField passwordField = new TogglePasswordField("Password", passwordIcon, eyeOpen, eyeClosed);
-        passwordField.setFont(merriweatherRegular.deriveFont(14f));
-        card.add(passwordField, "w 320!, h 40!, align center");
+        // Password
+        TogglePasswordField passwordField =
+                new TogglePasswordField("Password", passwordIcon, eyeOpen, eyeClosed);
+        passwordField.setFont(merriweatherRegular);
+        card.add(passwordField, "w 320!, h 40!");
 
-        TogglePasswordField confirmPasswordField = new TogglePasswordField("Confirm Password", passwordIcon, eyeOpen, eyeClosed);
-        confirmPasswordField.setFont(merriweatherRegular.deriveFont(14f));
-        card.add(confirmPasswordField, "w 320!, h 40!, align center, wrap 20"); // space before button
+        // Spacing between password and confirm password
+        card.add(Box.createVerticalStrut(10));
 
-        // Sign-up button
+        // Confirm Password
+        TogglePasswordField confirmPasswordField =
+                new TogglePasswordField("Confirm Password", passwordIcon, eyeOpen, eyeClosed);
+        confirmPasswordField.setFont(merriweatherRegular);
+        card.add(confirmPasswordField, "w 320!, h 40!");
+        confirmPasswordError = createErrorLabel();
+        card.add(confirmPasswordError, "w 320!, align left, wrap 15");
+
+        // Sign Up button
         RoundedButton signUpBtn = new RoundedButton("Sign Up");
         signUpBtn.setFont(merriweatherBold.deriveFont(20f));
         signUpBtn.setBackground(new Color(33, 150, 243));
         signUpBtn.setForeground(Color.WHITE);
-        signUpBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        card.add(signUpBtn, "w 320!, h 40!, align center, wrap 20"); // space before footer
+        card.add(signUpBtn, "w 320!, h 40!, wrap 15");
 
-        // Footer with clickable "Sign in"
-        JLabel footer = new JLabel();
+        // Signup logic
+        signUpBtn.addActionListener(e -> {
+            clearErrors();
+
+            String firstName = firstNameField.getText().trim();
+            String lastName = lastNameField.getText().trim();
+            String email = emailField.getText().trim();
+            String password = new String(passwordField.getPassword());
+            String confirmPassword = new String(confirmPasswordField.getPassword());
+
+            boolean valid = true;
+
+            if (!firstName.matches("[a-zA-Z]+")) {
+                firstNameError.setText("First name can only contain letters");
+                firstNameError.setVisible(true);
+                valid = false;
+            }
+
+            if (!lastName.matches("[a-zA-Z]+")) {
+                lastNameError.setText("Last name can only contain letters");
+                lastNameError.setVisible(true);
+                valid = false;
+            }
+
+            if (!Pattern.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$", email)) {
+                emailError.setText("Invalid email format");
+                emailError.setVisible(true);
+                valid = false;
+            }
+
+            if (!password.equals(confirmPassword)) {
+                confirmPasswordError.setText("Passwords do not match");
+                confirmPasswordError.setVisible(true);
+                valid = false;
+            }
+
+            if (!valid) return;
+
+            try (Connection conn = DBconnection.connect()) {
+                String check = "SELECT 1 FROM users WHERE email = ?";
+                PreparedStatement ps = conn.prepareStatement(check);
+                ps.setString(1, email);
+
+                if (ps.executeQuery().next()) {
+                    emailError.setText("Email is already registered");
+                    emailError.setVisible(true);
+                    return;
+                }
+
+                String insert =
+                        "INSERT INTO users(first_name,last_name,email,password) VALUES(?,?,?,?)";
+                PreparedStatement ins = conn.prepareStatement(insert);
+                ins.setString(1, firstName);
+                ins.setString(2, lastName);
+                ins.setString(3, email);
+                ins.setString(4, password);
+                ins.executeUpdate();
+
+                new logInPage().setVisible(true);
+                dispose();
+
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+            }
+        });
+
+        // Footer
+        JLabel footer = new JLabel(
+                "<html>Already have an account? <span style='color:#2196F3; text-decoration:underline;'>Sign in</span></html>");
         footer.setFont(merriweatherRegular.deriveFont(12f));
         footer.setHorizontalAlignment(SwingConstants.CENTER);
-        // Only "Sign in" clickable and styled
-        footer.setText("<html>Already have an account? <span style='color:#2196F3; text-decoration:underline;'>Sign in</span></html>");
-        // Change cursor on hover for the clickable part
-        footer.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                // approximate position of "Sign in"
-                footer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-            }
-        });
+        footer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         footer.addMouseListener(new MouseAdapter() {
-            @Override
             public void mouseClicked(MouseEvent e) {
-                System.out.println("Sign in clicked!");
-                // TODO: open login page here
+                new logInPage().setVisible(true);
+                dispose();
             }
         });
-        card.add(footer, "align center, span");
+        card.add(footer, "align center, wrap 0");
 
         setVisible(true);
+    }
+
+    // ===== Helper methods =====
+    private JLabel createErrorLabel() {
+        JLabel label = new JLabel(" ");
+        label.setFont(merriweatherRegular.deriveFont(11f));
+        label.setForeground(new Color(220, 53, 69));
+        label.setVisible(false);
+        return label;
+    }
+
+    private void clearErrors() {
+        firstNameError.setVisible(false);
+        lastNameError.setVisible(false);
+        emailError.setVisible(false);
+        confirmPasswordError.setVisible(false);
     }
 
     private Font loadFont(String path, float size) {
@@ -123,213 +218,162 @@ public class signUpPage extends JFrame {
             Font font = Font.createFont(Font.TRUETYPE_FONT, stream);
             return font.deriveFont(size);
         } catch (Exception e) {
-            e.printStackTrace();
-            return new Font("Arial", Font.PLAIN, (int) size); // fallback
+            return new Font("Arial", Font.PLAIN, (int) size);
         }
     }
 
-    // RoundedPanel
+    // ================= ORIGINAL UI CLASSES =================
     class RoundedPanel extends JPanel {
         private int cornerRadius = 20;
+
         public RoundedPanel() { setOpaque(false); }
+
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(new Color(255,255,255,140));
-            g2.fillRoundRect(0,0,getWidth(),getHeight(),cornerRadius,cornerRadius);
-            g2.setColor(new Color(200,200,200,120));
-            g2.drawRoundRect(0,0,getWidth()-1,getHeight()-1,cornerRadius,cornerRadius);
-            super.paintComponent(g);
+
+            int w = getWidth(), h = getHeight();
+            for (int i = 6; i > 0; i--) {
+                float alpha = i * 0.05f;
+                g2.setColor(new Color(255, 255, 255, (int)(alpha*255)));
+                g2.setStroke(new BasicStroke(i));
+                g2.drawRoundRect(i,i,w-i*2,h-i*2,cornerRadius,cornerRadius);
+            }
+
+            g2.setColor(new Color(255,255,255,120));
+            g2.fillRoundRect(6,6,w-12,h-12,cornerRadius,cornerRadius);
+
+            g2.setColor(new Color(255,255,255,200));
+            g2.setStroke(new BasicStroke(2f));
+            g2.drawRoundRect(6,6,w-12,h-12,cornerRadius,cornerRadius);
+
             g2.dispose();
+            super.paintComponent(g);
         }
     }
 
-    // BackgroundPanel
     class BackgroundPanel extends JPanel {
         private Image backgroundImage;
+
         public BackgroundPanel(String resourcePath) {
             backgroundImage = new ImageIcon(getClass().getResource(resourcePath)).getImage();
-            setLayout(new MigLayout("fill, center","[grow]","[grow]"));
+            setLayout(new MigLayout("fill, center"));
         }
-        @Override
+
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            g.drawImage(backgroundImage,0,0,getWidth(),getHeight(),this);
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         }
     }
 
-    // IconTextField
     class IconTextField extends JTextField {
         private String placeholder;
         private Image icon;
-        private int arc = 20, iconSize = 20, iconPadding = 10;
-        private boolean focused = false;
+        private boolean focused;
 
         public IconTextField(String placeholder, Image icon) {
             this.placeholder = placeholder;
             this.icon = icon;
             setBorder(null);
             setOpaque(false);
-            setText("");
-            setCaretColor(Color.BLACK);
 
-            addFocusListener(new java.awt.event.FocusAdapter() {
-                public void focusGained(java.awt.event.FocusEvent e) { focused = true; repaint(); }
-                public void focusLost(java.awt.event.FocusEvent e) { focused = false; repaint(); }
+            addFocusListener(new FocusAdapter() {
+                public void focusGained(FocusEvent e) { focused=true; repaint(); }
+                public void focusLost(FocusEvent e) { focused=false; repaint(); }
             });
         }
 
-        @Override
-        public Insets getInsets() {
-            Insets insets = super.getInsets();
-            int left = iconSize + iconPadding + 5;
-            return new Insets(insets.top, left, insets.bottom, insets.right);
-        }
+        public Insets getInsets() { return new Insets(5,40,5,10); }
 
-        @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+
             g2.setColor(new Color(255,255,255,200));
-            g2.fillRoundRect(0,0,getWidth(),getHeight(),arc,arc);
+            g2.fillRoundRect(0,0,getWidth(),getHeight(),20,20);
 
             if(focused){
                 g2.setColor(new Color(33,150,243,100));
                 g2.setStroke(new BasicStroke(3));
-                g2.drawRoundRect(1,1,getWidth()-2,getHeight()-2,arc,arc);
+                g2.drawRoundRect(1,1,getWidth()-2,getHeight()-2,20,20);
             }
 
             super.paintComponent(g2);
 
-            if(icon!=null){
-                g2.drawImage(icon,10,(getHeight()-iconSize)/2,iconSize,iconSize,this);
-            }
+            g2.drawImage(icon,10,(getHeight()-20)/2,20,20,this);
 
-            if(getText().isEmpty() && merriweatherRegular!=null){
-                g2.setFont(merriweatherRegular.deriveFont(14f));
+            if(getText().isEmpty()){
+                g2.setFont(merriweatherRegular);
                 g2.setColor(Color.GRAY);
-                g2.drawString(placeholder, iconSize+10+iconPadding, getHeight()/2 + g2.getFontMetrics().getAscent()/2 - 2);
+                g2.drawString(placeholder,40,getHeight()/2+5);
             }
 
             g2.dispose();
         }
     }
 
-    // TogglePasswordField
     class TogglePasswordField extends JPasswordField {
         private String placeholder;
         private Image leftIcon, eyeOpen, eyeClosed;
-        private boolean showPassword = false;
-        private int arc = 20, iconSize=20, iconPadding=10;
-        private boolean focused=false;
+        private boolean show;
 
         public TogglePasswordField(String placeholder, Image leftIcon, Image eyeOpen, Image eyeClosed){
-            this.placeholder = placeholder;
-            this.leftIcon = leftIcon;
-            this.eyeOpen = eyeOpen;
-            this.eyeClosed = eyeClosed;
-            setBorder(null);
-            setOpaque(false);
-            setEchoChar('\u2022');
-            setCaretColor(Color.BLACK);
-
-            addFocusListener(new java.awt.event.FocusAdapter() {
-                public void focusGained(java.awt.event.FocusEvent e){ focused=true; repaint();}
-                public void focusLost(java.awt.event.FocusEvent e){ focused=false; repaint();}
-            });
+            this.placeholder=placeholder; this.leftIcon=leftIcon; this.eyeOpen=eyeOpen; this.eyeClosed=eyeClosed;
+            setBorder(null); setOpaque(false); setEchoChar('\u2022');
 
             addMouseListener(new MouseAdapter(){
-                @Override
                 public void mousePressed(MouseEvent e){
-                    int x = e.getX();
-                    if(x >= getWidth()-iconSize-iconPadding){
-                        showPassword = !showPassword;
-                        setEchoChar(showPassword?(char)0:'\u2022');
-                        repaint();
-                    }
-                }
-            });
-
-            addMouseMotionListener(new MouseMotionAdapter(){
-                @Override
-                public void mouseMoved(MouseEvent e){
-                    int x = e.getX();
-                    if(x>=getWidth()-iconSize-iconPadding){
-                        setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-                    }else{
-                        setCursor(Cursor.getPredefinedCursor(Cursor.TEXT_CURSOR));
-                    }
+                    if(e.getX()>=getWidth()-30){ show=!show; setEchoChar(show?(char)0:'\u2022'); repaint(); }
                 }
             });
         }
 
-        @Override
-        public Insets getInsets(){
-            Insets insets = super.getInsets();
-            int left = iconSize + iconPadding + 5;
-            int right = iconSize + iconPadding + 5;
-            return new Insets(insets.top,left,insets.bottom,right);
-        }
+        public Insets getInsets(){ return new Insets(5,40,5,40); }
 
-        @Override
         protected void paintComponent(Graphics g){
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(new Color(255,255,255,200));
-            g2.fillRoundRect(0,0,getWidth(),getHeight(),arc,arc);
 
-            if(focused){
-                g2.setColor(new Color(33,150,243,100));
-                g2.setStroke(new BasicStroke(3));
-                g2.drawRoundRect(1,1,getWidth()-2,getHeight()-2,arc,arc);
-            }
+            g2.setColor(new Color(255,255,255,200));
+            g2.fillRoundRect(0,0,getWidth(),getHeight(),20,20);
 
             super.paintComponent(g2);
 
-            if(leftIcon!=null) g2.drawImage(leftIcon,10,(getHeight()-iconSize)/2,iconSize,iconSize,this);
-            if(getPassword().length==0 && merriweatherRegular!=null){
-                g2.setFont(merriweatherRegular.deriveFont(14f));
-                g2.setColor(Color.GRAY);
-                g2.drawString(placeholder, iconSize+10+iconPadding,getHeight()/2 + g2.getFontMetrics().getAscent()/2 -2);
-            }
+            g2.drawImage(leftIcon,10,(getHeight()-20)/2,20,20,this);
+            g2.drawImage(show?eyeOpen:eyeClosed,getWidth()-30,(getHeight()-20)/2,20,20,this);
 
-            Image eyeIcon = showPassword?eyeOpen:eyeClosed;
-            if(eyeIcon!=null) g2.drawImage(eyeIcon,getWidth()-iconSize-iconPadding,(getHeight()-iconSize)/2,iconSize,iconSize,this);
+            if(getPassword().length==0){
+                g2.setFont(merriweatherRegular);
+                g2.setColor(Color.GRAY);
+                g2.drawString(placeholder,40,getHeight()/2+5);
+            }
 
             g2.dispose();
         }
     }
 
-    // RoundedButton
-    class RoundedButton extends JButton{
-        private int arc = 20;
+    class RoundedButton extends JButton {
         public RoundedButton(String text){
             super(text);
-            setOpaque(false);
-            setBorderPainted(false);
-            setFocusPainted(false);
-            setContentAreaFilled(false);
+            setOpaque(false); setBorderPainted(false); setFocusPainted(false); setContentAreaFilled(false);
         }
-        @Override
+
         protected void paintComponent(Graphics g){
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
 
-            Color bg = getBackground();
-            if(getModel().isPressed()) bg = bg.darker();
-            else if(getModel().isRollover()) bg = bg.brighter();
+            Color bg=getBackground();
+            if(getModel().isPressed()) bg=bg.darker();
+            else if(getModel().isRollover()) bg=bg.brighter();
 
             g2.setColor(bg);
-            g2.fillRoundRect(0,0,getWidth(),getHeight(),arc,arc);
+            g2.fillRoundRect(0,0,getWidth(),getHeight(),20,20);
 
-            g2.setFont(getFont());
             g2.setColor(getForeground());
-            FontMetrics fm = g2.getFontMetrics();
-            String text = getText();
-            int x = (getWidth()-fm.stringWidth(text))/2;
-            int y = (getHeight()+fm.getAscent())/2 -2;
-            g2.drawString(text,x,y);
+            g2.setFont(getFont());
+            FontMetrics fm=g2.getFontMetrics();
+            g2.drawString(getText(),(getWidth()-fm.stringWidth(getText()))/2,(getHeight()+fm.getAscent())/2-2);
 
             g2.dispose();
         }
