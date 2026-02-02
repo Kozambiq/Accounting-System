@@ -1,14 +1,17 @@
 package com.raven.main;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.*;
 import net.miginfocom.swing.MigLayout;
 import java.io.InputStream;
+import java.net.URL;
 import java.sql.*;
 import java.util.regex.Pattern;
 
-public class signUpPage extends JFrame {
+public class signUpPage extends JPanel {
 
     private RoundedPanel card;
 
@@ -25,9 +28,7 @@ public class signUpPage extends JFrame {
     private JLabel confirmPasswordError;
 
     public signUpPage() {
-        setTitle("Sign Up");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setLayout(new BorderLayout());
 
         // Load fonts
         merriweatherRegular = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Regular.ttf", 14f);
@@ -37,7 +38,7 @@ public class signUpPage extends JFrame {
 
         // Background panel
         BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/bg3.jpg");
-        setContentPane(backgroundPanel);
+        add(backgroundPanel, BorderLayout.CENTER);
 
         // Card with top padding to push content up
         card = new RoundedPanel();
@@ -45,10 +46,18 @@ public class signUpPage extends JFrame {
         card.setPreferredSize(new Dimension(400, 720));
         backgroundPanel.add(card, "center");
 
-        // Logo (kept big)
+        // Logo (scaled down, centered, aspect ratio preserved)
         Image logoImg = new ImageIcon(getClass().getResource("/icon/logo.png")).getImage();
-        ImageIcon logoIcon = new ImageIcon(logoImg.getScaledInstance(250, 180, Image.SCALE_SMOOTH));
-        card.add(new JLabel(logoIcon), "wrap 10, pushy 0"); // pushy 0 keeps it from pushing other content down
+        int targetLogoHeight = 160;
+        int logoW = logoImg.getWidth(null);
+        int logoH = logoImg.getHeight(null);
+        if (logoW > 0 && logoH > 0) {
+            int scaledW = logoW * targetLogoHeight / logoH;
+            logoImg = logoImg.getScaledInstance(scaledW, targetLogoHeight, Image.SCALE_SMOOTH);
+        }
+        JLabel logoLabel = new JLabel(new ImageIcon(logoImg));
+        logoLabel.setHorizontalAlignment(SwingConstants.CENTER);
+        card.add(logoLabel, "alignx center, wrap, gapbottom 10");
 
         // Title
         JLabel title = new JLabel("Sign Up");
@@ -62,11 +71,11 @@ public class signUpPage extends JFrame {
         card.add(subtitle, "align center, wrap 15");
 
         // Icons
-        Image userIcon = new ImageIcon(getClass().getResource("/icon/user.png")).getImage();
-        Image emailIcon = new ImageIcon(getClass().getResource("/icon/email.png")).getImage();
-        Image passwordIcon = new ImageIcon(getClass().getResource("/icon/key.png")).getImage();
-        Image eyeOpen = new ImageIcon(getClass().getResource("/icon/eyeOpen.png")).getImage();
-        Image eyeClosed = new ImageIcon(getClass().getResource("/icon/eyeClosed.png")).getImage();
+        Image userIcon = loadImage("/icon/user.png");
+        Image emailIcon = loadImage("/icon/email.png");
+        Image passwordIcon = loadImage("/icon/key.png");
+        Image eyeOpen = loadImage("/icon/eyeOpen.png");
+        Image eyeClosed = loadImage("/icon/eyeClosed.png");
 
         // First Name
         IconTextField firstNameField = new IconTextField("First Name", userIcon);
@@ -113,7 +122,40 @@ public class signUpPage extends JFrame {
         signUpBtn.setForeground(Color.WHITE);
         card.add(signUpBtn, "w 320!, h 40!, wrap 15");
 
-        // Signup logic
+        // Realtime inline validation
+        firstNameField.getDocument().addDocumentListener(new SimpleDocumentListener() {
+            @Override
+            public void update(DocumentEvent e) {
+                validateFirstName(firstNameField.getText().trim());
+            }
+        });
+
+        lastNameField.getDocument().addDocumentListener(new SimpleDocumentListener() {
+            @Override
+            public void update(DocumentEvent e) {
+                validateLastName(lastNameField.getText().trim());
+            }
+        });
+
+        emailField.getDocument().addDocumentListener(new SimpleDocumentListener() {
+            @Override
+            public void update(DocumentEvent e) {
+                validateEmail(emailField.getText().trim());
+            }
+        });
+
+        DocumentListener passwordListener = new SimpleDocumentListener() {
+            @Override
+            public void update(DocumentEvent e) {
+                String password = new String(passwordField.getPassword());
+                String confirmPassword = new String(confirmPasswordField.getPassword());
+                validatePasswords(password, confirmPassword);
+            }
+        };
+        passwordField.getDocument().addDocumentListener(passwordListener);
+        confirmPasswordField.getDocument().addDocumentListener(passwordListener);
+
+        // Signup logic (click)
         signUpBtn.addActionListener(e -> {
             clearErrors();
 
@@ -125,75 +167,102 @@ public class signUpPage extends JFrame {
 
             boolean valid = true;
 
-            if (!firstName.matches("[a-zA-Z]+")) {
-                firstNameError.setText("First name can only contain letters");
-                firstNameError.setVisible(true);
+            if (!validateFirstName(firstName)) {
                 valid = false;
             }
 
-            if (!lastName.matches("[a-zA-Z]+")) {
-                lastNameError.setText("Last name can only contain letters");
-                lastNameError.setVisible(true);
+            if (!validateLastName(lastName)) {
                 valid = false;
             }
 
-            if (!Pattern.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$", email)) {
-                emailError.setText("Invalid email format");
-                emailError.setVisible(true);
+            if (!validateEmail(email)) {
                 valid = false;
             }
 
-            if (!password.equals(confirmPassword)) {
-                confirmPasswordError.setText("Passwords do not match");
-                confirmPasswordError.setVisible(true);
+            if (!validatePasswords(password, confirmPassword)) {
                 valid = false;
             }
 
             if (!valid) return;
 
-            try (Connection conn = DBconnection.connect()) {
-                String check = "SELECT 1 FROM users WHERE email = ?";
-                PreparedStatement ps = conn.prepareStatement(check);
-                ps.setString(1, email);
+            signUpBtn.setEnabled(false);
 
-                if (ps.executeQuery().next()) {
-                    emailError.setText("Email is already registered");
-                    emailError.setVisible(true);
-                    return;
+            new Thread(() -> {
+                try (Connection conn = DBConnection.connect()) {
+                    String check = "SELECT 1 FROM users WHERE email = ?";
+                    boolean emailExists;
+                    try (PreparedStatement ps = conn.prepareStatement(check)) {
+                        ps.setString(1, email);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            emailExists = rs.next();
+                        }
+                    }
+
+                    if (emailExists) {
+                        SwingUtilities.invokeLater(() -> {
+                            emailError.setText("Email is already registered");
+                            emailError.setVisible(true);
+                            signUpBtn.setEnabled(true);
+                        });
+                        return;
+                    }
+
+                    String insert =
+                            "INSERT INTO users(first_name,last_name,email,password) VALUES(?,?,?,?)";
+                    try (PreparedStatement ins = conn.prepareStatement(insert)) {
+                        ins.setString(1, firstName);
+                        ins.setString(2, lastName);
+                        ins.setString(3, email);
+                        ins.setString(4, password);
+                        ins.executeUpdate();
+                    }
+
+                    SwingUtilities.invokeLater(() -> {
+                        Window window = SwingUtilities.getWindowAncestor(signUpPage.this);
+                        if (window instanceof windowManager) {
+                            ((windowManager) window).showLogin();
+                        }
+                    });
+
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    SwingUtilities.invokeLater(() -> {
+                        JOptionPane.showMessageDialog(
+                                signUpPage.this,
+                                "An error occurred while creating your account. Please try again.",
+                                "Error",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                        signUpBtn.setEnabled(true);
+                    });
                 }
-
-                String insert =
-                        "INSERT INTO users(first_name,last_name,email,password) VALUES(?,?,?,?)";
-                PreparedStatement ins = conn.prepareStatement(insert);
-                ins.setString(1, firstName);
-                ins.setString(2, lastName);
-                ins.setString(3, email);
-                ins.setString(4, password);
-                ins.executeUpdate();
-
-                new logInPage().setVisible(true);
-                dispose();
-
-            } catch (SQLException ex) {
-                ex.printStackTrace();
-            }
+            }).start();
         });
 
-        // Footer
-        JLabel footer = new JLabel(
-                "<html>Already have an account? <span style='color:#2196F3; text-decoration:underline;'>Sign in</span></html>");
-        footer.setFont(merriweatherRegular.deriveFont(12f));
-        footer.setHorizontalAlignment(SwingConstants.CENTER);
-        footer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        footer.addMouseListener(new MouseAdapter() {
+        // Footer: only "Sign in" is clickable
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 0));
+        footerPanel.setOpaque(false);
+
+        JLabel footerText = new JLabel("Already have an account?");
+        footerText.setFont(merriweatherRegular.deriveFont(12f));
+
+        JLabel footerLink = new JLabel(
+                "<html><span style='color:#2196F3; text-decoration:underline;'>Sign in</span></html>");
+        footerLink.setFont(merriweatherRegular.deriveFont(12f));
+        footerLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        footerLink.addMouseListener(new MouseAdapter() {
+            @Override
             public void mouseClicked(MouseEvent e) {
-                new logInPage().setVisible(true);
-                dispose();
+                Window window = SwingUtilities.getWindowAncestor(signUpPage.this);
+                if (window instanceof windowManager) {
+                    ((windowManager) window).showLogin();
+                }
             }
         });
-        card.add(footer, "align center, wrap 0");
 
-        setVisible(true);
+        footerPanel.add(footerText);
+        footerPanel.add(footerLink);
+        card.add(footerPanel, "align center, wrap 0");
     }
 
     // ===== Helper methods =====
@@ -212,13 +281,98 @@ public class signUpPage extends JFrame {
         confirmPasswordError.setVisible(false);
     }
 
+    private boolean validateFirstName(String firstName) {
+        if (firstName.isEmpty()) {
+            firstNameError.setText("First name is required");
+            firstNameError.setVisible(true);
+            return false;
+        } else if (!firstName.matches("^[a-zA-Z]+(\\s[a-zA-Z]+)*$")) {
+            firstNameError.setText("First name can only contain letters and spaces");
+            firstNameError.setVisible(true);
+            return false;
+        } else {
+            firstNameError.setVisible(false);
+            return true;
+        }
+    }
+
+    private boolean validateLastName(String lastName) {
+        if (lastName.isEmpty()) {
+            lastNameError.setText("Last name is required");
+            lastNameError.setVisible(true);
+            return false;
+        } else if (!lastName.matches("^[a-zA-Z]+(\\s[a-zA-Z]+)*$")) {
+            lastNameError.setText("Last name can only contain letters and spaces");
+            lastNameError.setVisible(true);
+            return false;
+        } else {
+            lastNameError.setVisible(false);
+            return true;
+        }
+    }
+
+    private boolean validateEmail(String email) {
+        if (email.isEmpty()) {
+            emailError.setText("Email is required");
+            emailError.setVisible(true);
+            return false;
+        } else if (!Pattern.matches("^[A-Za-z0-9+_.-]+@[A-Za-z0-9.-]+$", email)) {
+            emailError.setText("Invalid email format");
+            emailError.setVisible(true);
+            return false;
+        } else {
+            emailError.setVisible(false);
+            return true;
+        }
+    }
+
+    private boolean validatePasswords(String password, String confirmPassword) {
+        if (!password.equals(confirmPassword)) {
+            confirmPasswordError.setText("Passwords do not match");
+            confirmPasswordError.setVisible(true);
+            return false;
+        } else {
+            confirmPasswordError.setVisible(false);
+            return true;
+        }
+    }
+
     private Font loadFont(String path, float size) {
-        try {
-            InputStream stream = getClass().getResourceAsStream(path);
+        try (InputStream stream = getClass().getResourceAsStream(path)) {
+            if (stream == null) {
+                throw new IllegalArgumentException("Font resource not found: " + path);
+            }
             Font font = Font.createFont(Font.TRUETYPE_FONT, stream);
             return font.deriveFont(size);
         } catch (Exception e) {
             return new Font("Arial", Font.PLAIN, (int) size);
+        }
+    }
+
+    private Image loadImage(String resourcePath) {
+        URL url = getClass().getResource(resourcePath);
+        if (url != null) {
+            return new ImageIcon(url).getImage();
+        }
+        return null;
+    }
+
+    private abstract class SimpleDocumentListener implements DocumentListener {
+        public abstract void update(DocumentEvent e);
+
+        @Override
+        public void insertUpdate(DocumentEvent e) {
+            update(e);
+        }
+
+        @Override
+        public void removeUpdate(DocumentEvent e) {
+            update(e);
+        }
+
+        @Override
+        public void changedUpdate(DocumentEvent e) {
+            update(e);
         }
     }
 
@@ -257,13 +411,20 @@ public class signUpPage extends JFrame {
         private Image backgroundImage;
 
         public BackgroundPanel(String resourcePath) {
-            backgroundImage = new ImageIcon(getClass().getResource(resourcePath)).getImage();
+            URL url = getClass().getResource(resourcePath);
+            if (url != null) {
+                backgroundImage = new ImageIcon(url).getImage();
+            } else {
+                backgroundImage = null;
+            }
             setLayout(new MigLayout("fill, center"));
         }
 
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+            if (backgroundImage != null) {
+                g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
+            }
         }
     }
 

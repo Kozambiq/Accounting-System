@@ -5,8 +5,12 @@ import java.awt.*;
 import java.awt.event.*;
 import net.miginfocom.swing.MigLayout;
 import java.io.InputStream;
+import java.sql.Connection;
+import java.sql.PreparedStatement;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 
-public class logInPage extends JFrame {
+public class logInPage extends JPanel {
 
     private RoundedPanel card;
 
@@ -17,38 +21,43 @@ public class logInPage extends JFrame {
     private Font merriweatherBoldItalic;
 
     public logInPage() {
-        setTitle("Log In");
-        setDefaultCloseOperation(EXIT_ON_CLOSE);
-        setExtendedState(JFrame.MAXIMIZED_BOTH);
+        setLayout(new BorderLayout());
 
-        // Load Merriweather fonts
+        // Load Merriweather fonts (same as signUpPage)
         merriweatherRegular = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Regular.ttf", 14f);
-        merriweatherBold = loadFont("/fonts/Merriweather/Merriweather-Bold.ttf", 14f);
-        merriweatherItalic = loadFont("/fonts/Merriweather/Merriweather-Italic.ttf", 14f);
-        merriweatherBoldItalic = loadFont("/fonts/Merriweather/Merriweather-BoldItalic.ttf", 14f);
+        merriweatherBold = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Bold.ttf", 14f);
+        merriweatherItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Italic.ttf", 14f);
+        merriweatherBoldItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-BoldItalic.ttf", 14f);
 
-        // Background panel
-        BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/background.jpg");
-        setContentPane(backgroundPanel);
+        // Background panel (same as signUpPage)
+        BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/bg3.jpg");
+        add(backgroundPanel, BorderLayout.CENTER);
 
-        // Rounded card
+        // Rounded card (fixed width like signUpPage, height wraps contents)
         card = new RoundedPanel();
-        card.setLayout(new MigLayout("wrap 1, gapy 15, align center", "[grow]", "[]"));
-        card.setPreferredSize(new Dimension(400, 500));
-        backgroundPanel.add(card, "center");
+        card.setLayout(new MigLayout("wrap 1, gapy 4, align center, top 50"));
+        backgroundPanel.add(card, "center, w 400!");
 
-        // Logo at top
-        Image logoImg = new ImageIcon(getClass().getResource("/icon/background-logo.png")).getImage();
-        ImageIcon logoIcon = new ImageIcon(logoImg.getScaledInstance(250, 120, Image.SCALE_SMOOTH));
-        JLabel logoLabel = new JLabel(logoIcon);
+        // Logo at top (same logo and sizing as signUpPage)
+        Image logoImg = new ImageIcon(getClass().getResource("/icon/logo.png")).getImage();
+        int targetLogoHeight = 160;
+        int logoW = logoImg.getWidth(null);
+        int logoH = logoImg.getHeight(null);
+        if (logoW > 0 && logoH > 0) {
+            int scaledW = logoW * targetLogoHeight / logoH;
+            logoImg = logoImg.getScaledInstance(scaledW, targetLogoHeight, Image.SCALE_SMOOTH);
+        }
+        JLabel logoLabel = new JLabel(new ImageIcon(logoImg));
         logoLabel.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(logoLabel, "align center, span, wrap 10");
+        // smaller gap below logo so title sits closer
+        card.add(logoLabel, "alignx center, wrap 0");
 
         // Title & subtitle
         JLabel title = new JLabel("Log In");
         title.setFont(merriweatherBold.deriveFont(36f));
         title.setHorizontalAlignment(SwingConstants.CENTER);
-        card.add(title, "align center, span, wrap 5");
+        // minimal extra gap below title; main spacing comes before subtitle
+        card.add(title, "align center, span, wrap 0");
 
         JLabel subtitle = new JLabel("Enter your account credentials");
         subtitle.setFont(merriweatherRegular.deriveFont(14f));
@@ -78,27 +87,93 @@ public class logInPage extends JFrame {
         loginBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         card.add(loginBtn, "w 320!, h 40!, align center, wrap 20");
 
-        // Footer with clickable "Sign Up"
-        JLabel footer = new JLabel();
-        footer.setFont(merriweatherRegular.deriveFont(12f));
-        footer.setHorizontalAlignment(SwingConstants.CENTER);
-        footer.setText("<html>Don't have an account? <span style='color:#2196F3; text-decoration:underline;'>Sign Up</span></html>");
-        footer.addMouseMotionListener(new MouseMotionAdapter() {
-            @Override
-            public void mouseMoved(MouseEvent e) {
-                footer.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        // Login logic: validate credentials against the users table
+        loginBtn.addActionListener(e -> {
+            String email = emailField.getText().trim();
+            String password = new String(passwordField.getPassword());
+
+            if (email.isEmpty() || password.isEmpty()) {
+                JOptionPane.showMessageDialog(
+                        logInPage.this,
+                        "Please enter both email and password.",
+                        "Missing information",
+                        JOptionPane.WARNING_MESSAGE
+                );
+                return;
             }
+
+            loginBtn.setEnabled(false);
+
+            new Thread(() -> {
+                boolean success = false;
+                try (Connection conn = DBConnection.connect()) {
+                    String sql = "SELECT 1 FROM users WHERE email = ? AND password = ?";
+                    try (PreparedStatement ps = conn.prepareStatement(sql)) {
+                        ps.setString(1, email);
+                        ps.setString(2, password);
+                        try (ResultSet rs = ps.executeQuery()) {
+                            success = rs.next();
+                        }
+                    }
+                } catch (SQLException ex) {
+                    ex.printStackTrace();
+                    final String message = "A database error occurred while logging in. Please try again.";
+                    SwingUtilities.invokeLater(() -> JOptionPane.showMessageDialog(
+                            logInPage.this,
+                            message,
+                            "Error",
+                            JOptionPane.ERROR_MESSAGE
+                    ));
+                }
+
+                boolean loginOk = success;
+                SwingUtilities.invokeLater(() -> {
+                    loginBtn.setEnabled(true);
+                    if (loginOk) {
+                        JOptionPane.showMessageDialog(
+                                logInPage.this,
+                                "Login successful.",
+                                "Success",
+                                JOptionPane.INFORMATION_MESSAGE
+                        );
+                        // TODO: navigate to main application dashboard here
+                    } else {
+                        JOptionPane.showMessageDialog(
+                                logInPage.this,
+                                "Invalid email or password.",
+                                "Login failed",
+                                JOptionPane.ERROR_MESSAGE
+                        );
+                    }
+                });
+            }).start();
         });
-        footer.addMouseListener(new MouseAdapter() {
+
+        // Footer: only "Sign Up" is clickable, same behavior style as signUpPage
+        JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 0));
+        footerPanel.setOpaque(false);
+
+        JLabel footerText = new JLabel("Don't have an account?");
+        footerText.setFont(merriweatherRegular.deriveFont(12f));
+
+        JLabel footerLink = new JLabel(
+                "<html><span style='color:#2196F3; text-decoration:underline;'>Sign Up</span></html>");
+        footerLink.setFont(merriweatherRegular.deriveFont(12f));
+        footerLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        footerLink.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
-                System.out.println("Sign Up clicked!");
-                // TODO: open sign-up page here
+                Window window = SwingUtilities.getWindowAncestor(logInPage.this);
+                if (window instanceof windowManager) {
+                    ((windowManager) window).showSignup();
+                }
             }
         });
-        card.add(footer, "align center, span");
 
-        setVisible(true);
+        footerPanel.add(footerText);
+        footerPanel.add(footerLink);
+        card.add(footerPanel, "align center, wrap, gapbottom 30");
+
     }
 
     private Font loadFont(String path, float size) {
@@ -146,7 +221,7 @@ public class logInPage extends JFrame {
         }
     }
 
-    // Background panel (centered, fit image)
+    // Background panel (stretched to fill parent)
     class BackgroundPanel extends JPanel {
         private Image backgroundImage;
         public BackgroundPanel(String resourcePath) {
@@ -157,21 +232,7 @@ public class logInPage extends JFrame {
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
-            int panelWidth = getWidth();
-            int panelHeight = getHeight();
-            int imgWidth = backgroundImage.getWidth(this);
-            int imgHeight = backgroundImage.getHeight(this);
-
-            float widthRatio = (float) panelWidth / imgWidth;
-            float heightRatio = (float) panelHeight / imgHeight;
-            float ratio = Math.min(widthRatio, heightRatio);
-
-            int drawWidth = (int) (imgWidth * ratio);
-            int drawHeight = (int) (imgHeight * ratio);
-            int x = (panelWidth - drawWidth)/2;
-            int y = (panelHeight - drawHeight)/2;
-
-            g.drawImage(backgroundImage, x, y, drawWidth, drawHeight, this);
+            g.drawImage(backgroundImage, 0, 0, getWidth(), getHeight(), this);
         }
     }
 
@@ -348,7 +409,4 @@ public class logInPage extends JFrame {
         }
     }
 
-    public static void main(String[] args) {
-        SwingUtilities.invokeLater(logInPage::new);
-    }
 }
