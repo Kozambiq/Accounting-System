@@ -1,3 +1,5 @@
+package com.raven.main;
+
 import javax.swing.*;
 import javax.swing.border.Border;
 import javax.swing.border.LineBorder;
@@ -69,9 +71,9 @@ public class homePage extends JFrame {
 
         menuPanel.add(createNavItem("DashBoard", true, "/icon/dashboard.png"));
         menuPanel.add(Box.createVerticalStrut(40));
-        menuPanel.add(createNavItem("Chart of Accounts", false, "/icon/chart_of_accounts.png"));
+        menuPanel.add(createNavItem("Chart of Accounts", false, "/icon/chart_of_accounts_icon.png"));
         menuPanel.add(Box.createVerticalStrut(40));
-        menuPanel.add(createNavItem("Journal Entry", false, "/icon/journal.png"));
+        menuPanel.add(createNavItem("Journal Entry", false, "/icon/journal_entry.png"));
         menuPanel.add(Box.createVerticalStrut(40));
         menuPanel.add(createNavItem("Ledger", false, "/icon/ledger.png"));
         menuPanel.add(Box.createVerticalStrut(40));
@@ -94,7 +96,7 @@ public class homePage extends JFrame {
 
         RoundedNavItemPanel item = new RoundedNavItemPanel(baseBackground, activeColor, selected);
         item.setLayout(new BorderLayout());
-        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 40));
+        item.setMaximumSize(new Dimension(Integer.MAX_VALUE, 56));
         // Left padding increased to make room for icon, right padding stays the same
         Border paddingBorder = BorderFactory.createEmptyBorder(5, 20, 5, 20);
         item.setBorder(paddingBorder);
@@ -111,7 +113,7 @@ public class homePage extends JFrame {
                 ImageIcon icon = new ImageIcon(getClass().getResource(iconPath));
                 if (icon.getIconWidth() > 0) {
                     // Scale icon to appropriate size (e.g., 20x20)
-                    Image img = icon.getImage().getScaledInstance(20, 20, Image.SCALE_SMOOTH);
+                    Image img = icon.getImage().getScaledInstance(44, 44, Image.SCALE_SMOOTH);
                     JLabel iconLabel = new JLabel(new ImageIcon(img));
                     iconLabel.setOpaque(false);
                     iconLabel.setAlignmentY(Component.CENTER_ALIGNMENT);
@@ -191,11 +193,10 @@ public class homePage extends JFrame {
 
         JPanel cardsRow = createSummaryRow();
         JPanel bottomRow = createBottomRow();
-        bottomRow.setMaximumSize(new Dimension(Integer.MAX_VALUE, 90));
-        bottomRow.setPreferredSize(new Dimension(0, 90));
+        bottomRow.setBorder(BorderFactory.createEmptyBorder(24, 0, 0, 0));
 
         center.add(cardsRow, BorderLayout.NORTH);
-        center.add(bottomRow, BorderLayout.SOUTH);
+        center.add(bottomRow, BorderLayout.CENTER);
 
         main.add(topBar, BorderLayout.NORTH);
         main.add(center, BorderLayout.CENTER);
@@ -226,15 +227,15 @@ public class homePage extends JFrame {
         gbc.gridheight = 1;
         gbc.insets = new Insets(0, 100, 0, 0);
         gbc.gridx = 1;
-        JPanel m1 = createMetricCard("₱100,000", "Total Assets", "+ 7.9%", new Color(0x19A64A));
+        JPanel m1 = createMetricCard("₱100,000", "Total Assets", "+ 7.9%", new Color(0x19A64A), "/icon/asset_icon.png");
         m1.setPreferredSize(new Dimension(METRIC_CARD_WIDTH, METRIC_CARD_HEIGHT));
         row.add(m1, gbc);
         gbc.gridx = 2;
-        JPanel m2 = createMetricCard("₱100,000", "Total Liabilities", "+ 7.9%", new Color(0xE53935));
+        JPanel m2 = createMetricCard("₱100,000", "Total Liabilities", "+ 7.9%", new Color(0xE53935), "/icon/liabilities_icon.png");
         m2.setPreferredSize(new Dimension(METRIC_CARD_WIDTH, METRIC_CARD_HEIGHT));
         row.add(m2, gbc);
         gbc.gridx = 3;
-        JPanel m3 = createMetricCard("₱100,000", "Equity", "+ 7.9%", new Color(0x19A64A));
+        JPanel m3 = createMetricCard("₱100,000", "Equity", "+ 7.9%", new Color(0x19A64A), "/icon/equity_icon.png");
         m3.setPreferredSize(new Dimension(METRIC_CARD_WIDTH, METRIC_CARD_HEIGHT));
         row.add(m3, gbc);
 
@@ -250,7 +251,7 @@ public class homePage extends JFrame {
         try {
             ImageIcon icon = new ImageIcon(getClass().getResource("/icon/dashboard.png"));
             if (icon.getIconWidth() > 0) {
-                Image img = icon.getImage().getScaledInstance(28, 28, Image.SCALE_SMOOTH);
+                Image img = icon.getImage().getScaledInstance(32, 32, Image.SCALE_SMOOTH);
                 iconLabel.setIcon(new ImageIcon(img));
             }
         } catch (Exception ignored) { }
@@ -274,7 +275,7 @@ public class homePage extends JFrame {
         textPanel.add(iconLabel);
         textPanel.add(Box.createVerticalStrut(16));
         textPanel.add(name);
-        textPanel.add(Box.createVerticalStrut(25));
+        textPanel.add(Box.createVerticalStrut(20));
         textPanel.add(currentValueLabel);
         textPanel.add(value);
 
@@ -283,32 +284,64 @@ public class homePage extends JFrame {
         return card;
     }
 
-    private JPanel createMetricCard(String amount, String label, String changeText, Color changeColor) {
+    private JPanel createMetricCard(String amount, String label, String changeText, Color changeColor, String iconPath) {
         JPanel card = new RoundedProfileCard(new Color(0xcdc6c6));
-        card.setLayout(new BoxLayout(card, BoxLayout.Y_AXIS));
+        card.setLayout(new BorderLayout(0, 0));
         card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        JLabel amountLabel = new JLabel(amount);
-        amountLabel.setFont(new Font("SansSerif", Font.BOLD, 18));
-        amountLabel.setForeground(new Color(0x2F2F2F));
+        // Icon at top left
+        JPanel iconPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
+        iconPanel.setOpaque(false);
+        iconPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
+        if (iconPath != null) {
+            try {
+                ImageIcon icon = new ImageIcon(getClass().getResource(iconPath));
+                if (icon.getIconWidth() > 0) {
+                    Image img = icon.getImage().getScaledInstance(44, 44, Image.SCALE_SMOOTH);
+                    iconPanel.add(new JLabel(new ImageIcon(img)));
+                }
+            } catch (Exception ignored) { }
+        }
+        card.add(iconPanel, BorderLayout.NORTH);
 
-        JLabel descLabel = new JLabel(label);
-        descLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
-        descLabel.setForeground(new Color(0x555555));
+        // Badge + amount + label at bottom
+        JPanel bottomContent = new JPanel();
+        bottomContent.setLayout(new BoxLayout(bottomContent, BoxLayout.Y_AXIS));
+        bottomContent.setOpaque(false);
+
+        bottomContent.add(Box.createVerticalGlue());
 
         JLabel change = new JLabel(changeText);
-        change.setFont(new Font("SansSerif", Font.BOLD, 12));
+        change.setFont(new Font("SansSerif", Font.BOLD, 15));
         change.setForeground(Color.WHITE);
 
-        JPanel badge = new JPanel();
-        badge.setBackground(changeColor);
-        badge.setBorder(BorderFactory.createEmptyBorder(4, 8, 4, 8));
+        RoundedBadgePanel badge = new RoundedBadgePanel(changeColor);
+        badge.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        badge.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4));
         badge.add(change);
 
-        card.add(badge);
-        card.add(Box.createVerticalStrut(16));
-        card.add(amountLabel);
-        card.add(descLabel);
+        JPanel badgeWrapper = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
+        badgeWrapper.setOpaque(false);
+        badgeWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
+        badgeWrapper.add(badge);
+        // Keep wrapper from taking extra vertical space so the badge touches the money text
+        badgeWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
+
+        JLabel amountLabel = new JLabel(amount);
+        amountLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        amountLabel.setForeground(new Color(0x2F2F2F));
+        amountLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JLabel descLabel = new JLabel(label);
+        descLabel.setFont(new Font("SansSerif", Font.PLAIN, 27));
+        descLabel.setForeground(new Color(0x555555));
+        descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        bottomContent.add(badgeWrapper);
+        bottomContent.add(amountLabel);
+        bottomContent.add(descLabel);
+
+        card.add(bottomContent, BorderLayout.CENTER);
 
         return card;
     }
@@ -316,7 +349,7 @@ public class homePage extends JFrame {
     private JPanel createBottomRow() {
         JPanel row = new JPanel();
         row.setOpaque(false);
-        row.setLayout(new GridLayout(1, 2, 20, 0));
+        row.setLayout(new GridLayout(1, 2, 32, 0));
 
         row.add(createNotificationPanel());
         row.add(createRecentActivityPanel());
@@ -325,64 +358,70 @@ public class homePage extends JFrame {
     }
 
     private JPanel createNotificationPanel() {
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(0xE0D9E4));
+        JPanel panel = new RoundedProfileCard(new Color(0xcdc6c6));
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
+        JPanel headerRow = new JPanel(new FlowLayout(FlowLayout.LEADING, 8, 0));
+        headerRow.setOpaque(false);
+        try {
+            ImageIcon icon = new ImageIcon(getClass().getResource("/icon/bell_icon.png"));
+            if (icon.getIconWidth() > 0) {
+                Image img = icon.getImage().getScaledInstance(44, 44, Image.SCALE_SMOOTH);
+                headerRow.add(new JLabel(new ImageIcon(img)));
+            }
+        } catch (Exception ignored) { }
         JLabel header = new JLabel("Notification");
-        header.setFont(new Font("SansSerif", Font.BOLD, 11));
+        header.setFont(new Font("SansSerif", Font.BOLD, 18));
         header.setForeground(new Color(0x2F2F2F));
+        headerRow.add(header);
 
         JPanel list = new JPanel();
         list.setOpaque(false);
         list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
+        // Content will be added from backend later
 
-        list.add(createNotificationItem());
-        list.add(Box.createVerticalStrut(4));
-        list.add(createNotificationItem());
-
-        panel.add(header, BorderLayout.NORTH);
+        panel.add(headerRow, BorderLayout.NORTH);
         panel.add(list, BorderLayout.CENTER);
 
         return panel;
     }
 
     private JPanel createNotificationItem() {
-        JPanel item = new JPanel(new BorderLayout());
-        item.setBackground(new Color(0x5D5D6B));
-        item.setBorder(BorderFactory.createEmptyBorder(3, 6, 3, 6));
-
-        JLabel text = new JLabel("Entry unbalanced");
-        text.setFont(new Font("SansSerif", Font.PLAIN, 10));
-        text.setForeground(Color.WHITE);
-
-        JPanel dot = new JPanel();
-        dot.setPreferredSize(new Dimension(6, 6));
-        dot.setBackground(new Color(0xFF6B6B));
-
-        item.add(text, BorderLayout.CENTER);
-        item.add(dot, BorderLayout.EAST);
-
+        JPanel item = new RoundedProfileCard(new Color(0xcdc6c6));
+        item.setLayout(new BorderLayout());
+        item.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        item.setMinimumSize(new Dimension(0, 48));
+        item.setPreferredSize(new Dimension(0, 48));
+        // Content will be added from backend later
         return item;
     }
 
     private JPanel createRecentActivityPanel() {
-        JPanel panel = new JPanel();
-        panel.setBackground(new Color(0xE0D9E4));
+        JPanel panel = new RoundedProfileCard(new Color(0xcdc6c6));
         panel.setLayout(new BorderLayout());
-        panel.setBorder(BorderFactory.createEmptyBorder(6, 8, 6, 8));
+        panel.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
+        JPanel headerRow = new JPanel(new FlowLayout(FlowLayout.LEADING, 8, 0));
+        headerRow.setOpaque(false);
+        try {
+            ImageIcon icon = new ImageIcon(getClass().getResource("/icon/clock_icon.png"));
+            if (icon.getIconWidth() > 0) {
+                Image img = icon.getImage().getScaledInstance(44, 44, Image.SCALE_SMOOTH);
+                headerRow.add(new JLabel(new ImageIcon(img)));
+            }
+        } catch (Exception ignored) { }
         JLabel header = new JLabel("Recent Activity");
-        header.setFont(new Font("SansSerif", Font.BOLD, 11));
+        header.setFont(new Font("SansSerif", Font.BOLD, 18));
         header.setForeground(new Color(0x2F2F2F));
+        headerRow.add(header);
 
         JPanel content = new JPanel();
         content.setOpaque(false);
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        content.add(createActivitySection("Today"));
+        // Content will be added from backend later
 
-        panel.add(header, BorderLayout.NORTH);
+        panel.add(headerRow, BorderLayout.NORTH);
         panel.add(content, BorderLayout.CENTER);
 
         return panel;
@@ -477,6 +516,27 @@ public class homePage extends JFrame {
             int arc = 18;
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
 
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    // Small rounded box for metric card badges (e.g. "+ 7.9%")
+    private static class RoundedBadgePanel extends JPanel {
+        private final Color bgColor;
+
+        public RoundedBadgePanel(Color bgColor) {
+            this.bgColor = bgColor;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(bgColor);
+            int arc = 10;
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
             g2.dispose();
             super.paintComponent(g);
         }
