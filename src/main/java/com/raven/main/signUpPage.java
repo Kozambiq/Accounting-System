@@ -15,11 +15,9 @@ public class signUpPage extends JPanel {
 
     private RoundedPanel card;
 
-    // Merriweather fonts
-    private Font merriweatherRegular;
-    private Font merriweatherBold;
-    private Font merriweatherItalic;
-    private Font merriweatherBoldItalic;
+    // WorkSans fonts (Bold for bold, Regular for regular/italic/bold-italic)
+    private Font workSansRegular;
+    private Font workSansBold;
 
     // Error labels
     private JLabel firstNameError;
@@ -31,10 +29,8 @@ public class signUpPage extends JPanel {
         setLayout(new BorderLayout());
 
         // Load fonts
-        merriweatherRegular = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Regular.ttf", 14f);
-        merriweatherBold = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Bold.ttf", 14f);
-        merriweatherItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Italic.ttf", 14f);
-        merriweatherBoldItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-BoldItalic.ttf", 14f);
+        workSansRegular = loadFont("/fonts/Work_Sans/static/WorkSans-Regular.ttf", 14f);
+        workSansBold = loadFont("/fonts/Work_Sans/static/WorkSans-Bold.ttf", 14f);
 
         // Background panel
         BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/bg3.jpg");
@@ -61,12 +57,12 @@ public class signUpPage extends JPanel {
 
         // Title
         JLabel title = new JLabel("Sign Up");
-        title.setFont(merriweatherBold.deriveFont(36f));
+        title.setFont(workSansBold.deriveFont(36f));
         title.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(title, "align center, wrap 0");
 
         JLabel subtitle = new JLabel("Create your account");
-        subtitle.setFont(merriweatherRegular.deriveFont(14f));
+        subtitle.setFont(workSansRegular.deriveFont(14f));
         subtitle.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(subtitle, "align center, wrap 15");
 
@@ -79,21 +75,21 @@ public class signUpPage extends JPanel {
 
         // First Name
         IconTextField firstNameField = new IconTextField("First Name", userIcon);
-        firstNameField.setFont(merriweatherRegular);
+        firstNameField.setFont(workSansRegular);
         card.add(firstNameField, "w 320!, h 40!");
         firstNameError = createErrorLabel();
         card.add(firstNameError, "w 320!, align left");
 
         // Last Name
         IconTextField lastNameField = new IconTextField("Last Name", userIcon);
-        lastNameField.setFont(merriweatherRegular);
+        lastNameField.setFont(workSansRegular);
         card.add(lastNameField, "w 320!, h 40!");
         lastNameError = createErrorLabel();
         card.add(lastNameError, "w 320!, align left");
 
         // Email
         IconTextField emailField = new IconTextField("Email", emailIcon);
-        emailField.setFont(merriweatherRegular);
+        emailField.setFont(workSansRegular);
         card.add(emailField, "w 320!, h 40!");
         emailError = createErrorLabel();
         card.add(emailError, "w 320!, align left");
@@ -101,7 +97,7 @@ public class signUpPage extends JPanel {
         // Password
         TogglePasswordField passwordField =
                 new TogglePasswordField("Password", passwordIcon, eyeOpen, eyeClosed);
-        passwordField.setFont(merriweatherRegular);
+        passwordField.setFont(workSansRegular);
         card.add(passwordField, "w 320!, h 40!");
 
         // Spacing between password and confirm password
@@ -110,14 +106,14 @@ public class signUpPage extends JPanel {
         // Confirm Password
         TogglePasswordField confirmPasswordField =
                 new TogglePasswordField("Confirm Password", passwordIcon, eyeOpen, eyeClosed);
-        confirmPasswordField.setFont(merriweatherRegular);
+        confirmPasswordField.setFont(workSansRegular);
         card.add(confirmPasswordField, "w 320!, h 40!");
         confirmPasswordError = createErrorLabel();
         card.add(confirmPasswordError, "w 320!, align left, wrap 15");
 
         // Sign Up button
         RoundedButton signUpBtn = new RoundedButton("Sign Up");
-        signUpBtn.setFont(merriweatherBold.deriveFont(20f));
+        signUpBtn.setFont(workSansBold.deriveFont(20f));
         signUpBtn.setBackground(new Color(33, 150, 243));
         signUpBtn.setForeground(Color.WHITE);
         card.add(signUpBtn, "w 320!, h 40!, wrap 15");
@@ -244,11 +240,11 @@ public class signUpPage extends JPanel {
         footerPanel.setOpaque(false);
 
         JLabel footerText = new JLabel("Already have an account?");
-        footerText.setFont(merriweatherRegular.deriveFont(12f));
+        footerText.setFont(workSansRegular.deriveFont(12f));
 
         JLabel footerLink = new JLabel(
                 "<html><span style='color:#2196F3; text-decoration:underline;'>Sign in</span></html>");
-        footerLink.setFont(merriweatherRegular.deriveFont(12f));
+        footerLink.setFont(workSansRegular.deriveFont(12f));
         footerLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         footerLink.addMouseListener(new MouseAdapter() {
             @Override
@@ -268,7 +264,7 @@ public class signUpPage extends JPanel {
     // ===== Helper methods =====
     private JLabel createErrorLabel() {
         JLabel label = new JLabel(" ");
-        label.setFont(merriweatherRegular.deriveFont(11f));
+        label.setFont(workSansRegular.deriveFont(11f));
         label.setForeground(new Color(220, 53, 69));
         label.setVisible(false);
         return label;
@@ -465,7 +461,7 @@ public class signUpPage extends JPanel {
             g2.drawImage(icon,10,(getHeight()-20)/2,20,20,this);
 
             if(getText().isEmpty()){
-                g2.setFont(merriweatherRegular);
+                g2.setFont(workSansRegular);
                 g2.setColor(Color.GRAY);
                 g2.drawString(placeholder,40,getHeight()/2+5);
             }
@@ -505,7 +501,7 @@ public class signUpPage extends JPanel {
             g2.drawImage(show?eyeOpen:eyeClosed,getWidth()-30,(getHeight()-20)/2,20,20,this);
 
             if(getPassword().length==0){
-                g2.setFont(merriweatherRegular);
+                g2.setFont(workSansRegular);
                 g2.setColor(Color.GRAY);
                 g2.drawString(placeholder,40,getHeight()/2+5);
             }

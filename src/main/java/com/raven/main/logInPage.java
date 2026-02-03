@@ -14,20 +14,16 @@ public class logInPage extends JPanel {
 
     private RoundedPanel card;
 
-    // Merriweather fonts
-    private Font merriweatherRegular;
-    private Font merriweatherBold;
-    private Font merriweatherItalic;
-    private Font merriweatherBoldItalic;
+    // WorkSans fonts (Bold for bold, Regular for regular/italic/bold-italic)
+    private Font workSansRegular;
+    private Font workSansBold;
 
     public logInPage() {
         setLayout(new BorderLayout());
 
-        // Load Merriweather fonts (same as signUpPage)
-        merriweatherRegular = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Regular.ttf", 14f);
-        merriweatherBold = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Bold.ttf", 14f);
-        merriweatherItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-Italic.ttf", 14f);
-        merriweatherBoldItalic = loadFont("/fonts/Merriweather/static/Merriweather_120pt-BoldItalic.ttf", 14f);
+        // Load WorkSans fonts
+        workSansRegular = loadFont("/fonts/Work_Sans/static/WorkSans-Regular.ttf", 14f);
+        workSansBold = loadFont("/fonts/Work_Sans/static/WorkSans-Bold.ttf", 14f);
 
         // Background panel (same as signUpPage)
         BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/bg3.jpg");
@@ -54,13 +50,13 @@ public class logInPage extends JPanel {
 
         // Title & subtitle
         JLabel title = new JLabel("Log In");
-        title.setFont(merriweatherBold.deriveFont(36f));
+        title.setFont(workSansBold.deriveFont(36f));
         title.setHorizontalAlignment(SwingConstants.CENTER);
         // minimal extra gap below title; main spacing comes before subtitle
         card.add(title, "align center, span, wrap 0");
 
         JLabel subtitle = new JLabel("Enter your account credentials");
-        subtitle.setFont(merriweatherRegular.deriveFont(14f));
+        subtitle.setFont(workSansRegular.deriveFont(14f));
         subtitle.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(subtitle, "align center, span, wrap 20");
 
@@ -72,16 +68,16 @@ public class logInPage extends JPanel {
 
         // Email and password fields
         IconTextField emailField = new IconTextField("Email", emailIcon);
-        emailField.setFont(merriweatherRegular.deriveFont(14f));
+        emailField.setFont(workSansRegular.deriveFont(14f));
         card.add(emailField, "w 320!, h 40!, align center");
 
         TogglePasswordField passwordField = new TogglePasswordField("Password", passwordIcon, eyeOpen, eyeClosed);
-        passwordField.setFont(merriweatherRegular.deriveFont(14f));
+        passwordField.setFont(workSansRegular.deriveFont(14f));
         card.add(passwordField, "w 320!, h 40!, align center, wrap 20");
 
         // Log in button
         RoundedButton loginBtn = new RoundedButton("Log In");
-        loginBtn.setFont(merriweatherBold.deriveFont(20f));
+        loginBtn.setFont(workSansBold.deriveFont(20f));
         loginBtn.setBackground(new Color(33, 150, 243));
         loginBtn.setForeground(Color.WHITE);
         loginBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
@@ -154,11 +150,11 @@ public class logInPage extends JPanel {
         footerPanel.setOpaque(false);
 
         JLabel footerText = new JLabel("Don't have an account?");
-        footerText.setFont(merriweatherRegular.deriveFont(12f));
+        footerText.setFont(workSansRegular.deriveFont(12f));
 
         JLabel footerLink = new JLabel(
                 "<html><span style='color:#2196F3; text-decoration:underline;'>Sign Up</span></html>");
-        footerLink.setFont(merriweatherRegular.deriveFont(12f));
+        footerLink.setFont(workSansRegular.deriveFont(12f));
         footerLink.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         footerLink.addMouseListener(new MouseAdapter() {
             @Override
@@ -280,8 +276,8 @@ public class logInPage extends JPanel {
             super.paintComponent(g2);
 
             if(icon!=null) g2.drawImage(icon,10,(getHeight()-iconSize)/2,iconSize,iconSize,this);
-            if(getText().isEmpty() && merriweatherRegular!=null){
-                g2.setFont(merriweatherRegular.deriveFont(14f));
+            if(getText().isEmpty() && workSansRegular!=null){
+                g2.setFont(workSansRegular.deriveFont(14f));
                 g2.setColor(Color.GRAY);
                 g2.drawString(placeholder, iconSize+10+iconPadding, getHeight()/2 + g2.getFontMetrics().getAscent()/2 -2);
             }
@@ -362,8 +358,8 @@ public class logInPage extends JPanel {
             super.paintComponent(g2);
 
             if(leftIcon!=null) g2.drawImage(leftIcon,10,(getHeight()-iconSize)/2,iconSize,iconSize,this);
-            if(getPassword().length==0 && merriweatherRegular!=null){
-                g2.setFont(merriweatherRegular.deriveFont(14f));
+            if(getPassword().length==0 && workSansRegular!=null){
+                g2.setFont(workSansRegular.deriveFont(14f));
                 g2.setColor(Color.GRAY);
                 g2.drawString(placeholder, iconSize+10+iconPadding,getHeight()/2 + g2.getFontMetrics().getAscent()/2 -2);
             }
