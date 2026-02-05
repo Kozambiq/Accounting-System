@@ -35,7 +35,21 @@ public class windowManager extends JFrame {
         cardLayout.show(cardPanel, SIGNUP_CARD);
     }
 
+    /**
+     * Open the main dashboard (homePage) after a successful and verified login.
+     * This disposes the authentication window and shows the dashboard in a new frame.
+     */
+    public void openHomePage() {
+        SwingUtilities.invokeLater(() -> {
+            homePage page = new homePage();
+            page.setVisible(true);
+            dispose();
+        });
+    }
+
     public static void main(String[] args) {
+        // Ensure database schema is present before any UI or queries run.
+        DatabaseInitializer.initialize();
         SwingUtilities.invokeLater(windowManager::new);
     }
 }

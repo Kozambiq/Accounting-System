@@ -102,13 +102,23 @@ public class logInPage extends JPanel {
 
             new Thread(() -> {
                 boolean success = false;
+                int[] userIdHolder = new int[1];
+                String[] nameHolder = new String[1];
+
                 try (Connection conn = DBConnection.connect()) {
-                    String sql = "SELECT 1 FROM users WHERE email = ? AND password = ?";
+                    // Fetch the user's id and name parts so we can start a session.
+                    String sql = "SELECT id, first_name, last_name FROM users WHERE email = ? AND password = ?";
                     try (PreparedStatement ps = conn.prepareStatement(sql)) {
                         ps.setString(1, email);
                         ps.setString(2, password);
                         try (ResultSet rs = ps.executeQuery()) {
-                            success = rs.next();
+                            if (rs.next()) {
+                                success = true;
+                                userIdHolder[0] = rs.getInt("id");
+                                String firstName = rs.getString("first_name");
+                                String lastName = rs.getString("last_name");
+                                nameHolder[0] = (firstName + " " + lastName).trim();
+                            }
                         }
                     }
                 } catch (SQLException ex) {
@@ -122,17 +132,27 @@ public class logInPage extends JPanel {
                     ));
                 }
 
-                boolean loginOk = success;
+                final boolean loginOk = success;
+                final int loggedInUserId = userIdHolder[0];
+                final String loggedInName = nameHolder[0];
+
                 SwingUtilities.invokeLater(() -> {
                     loginBtn.setEnabled(true);
                     if (loginOk) {
+                        // Start in-memory session for this user
+                        Session.start(loggedInUserId, loggedInName, email);
+
                         JOptionPane.showMessageDialog(
                                 logInPage.this,
                                 "Login successful.",
                                 "Success",
                                 JOptionPane.INFORMATION_MESSAGE
                         );
-                        // TODO: navigate to main application dashboard here
+                        // After successful login, ask the windowManager to open the main dashboard
+                        Window window = SwingUtilities.getWindowAncestor(logInPage.this);
+                        if (window instanceof windowManager) {
+                            ((windowManager) window).openHomePage();
+                        }
                     } else {
                         JOptionPane.showMessageDialog(
                                 logInPage.this,

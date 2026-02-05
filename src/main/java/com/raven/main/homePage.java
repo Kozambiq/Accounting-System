@@ -176,7 +176,12 @@ public class homePage extends JFrame {
         title.setFont(new Font("SansSerif", Font.BOLD, 26));
         title.setForeground(new Color(0x2e6417));
 
-        JButton userChip = new JButton("Cyruss Gayola");
+        // Show the currently logged-in user's email in the user chip.
+        String email = Session.getCurrentUserEmail();
+        if (email == null || email.isBlank()) {
+            email = "Unknown Email";
+        }
+        JButton userChip = new JButton(email);
         userChip.setFocusPainted(false);
         userChip.setBackground(new Color(0x39A845));
         userChip.setForeground(Color.WHITE);
@@ -257,7 +262,12 @@ public class homePage extends JFrame {
         } catch (Exception ignored) { }
         iconLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel name = new JLabel("Cyruss Gayola");
+        // Use the full name of the currently logged-in user from Session.
+        String fullName = Session.getCurrentUserName();
+        if (fullName == null || fullName.isBlank()) {
+            fullName = "Unknown User";
+        }
+        JLabel name = new JLabel(fullName);
         name.setFont(new Font("SansSerif", Font.BOLD, 34));
         name.setForeground(Color.WHITE);
 
