@@ -15,6 +15,8 @@ public class AppWindow extends JFrame {
     public static final String CARD_DASHBOARD = "dashboard";
     public static final String CARD_COA = "coa";
     public static final String CARD_JOURNAL = "journal";
+    public static final String CARD_LEDGER = "ledger";
+    public static final String CARD_TRIAL_BALANCE = "trialBalance";
 
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
@@ -40,9 +42,19 @@ public class AppWindow extends JFrame {
         journalEntry journalFrame = new journalEntry();
         JPanel journalView = (JPanel) journalFrame.getContentPane();
 
+        // Ledger view card
+        ledger ledgerFrame = new ledger();
+        JPanel ledgerView = (JPanel) ledgerFrame.getContentPane();
+
+        // Trial Balance view card
+        trialBalance trialBalanceFrame = new trialBalance();
+        JPanel trialBalanceView = (JPanel) trialBalanceFrame.getContentPane();
+
         cardPanel.add(dashboardView, CARD_DASHBOARD);
         cardPanel.add(coaView, CARD_COA);
         cardPanel.add(journalView, CARD_JOURNAL);
+        cardPanel.add(ledgerView, CARD_LEDGER);
+        cardPanel.add(trialBalanceView, CARD_TRIAL_BALANCE);
 
         setContentPane(cardPanel);
         showDashboard();
@@ -58,6 +70,14 @@ public class AppWindow extends JFrame {
 
     public void showJournalEntry() {
         cardLayout.show(cardPanel, CARD_JOURNAL);
+    }
+
+    public void showLedger() {
+        cardLayout.show(cardPanel, CARD_LEDGER);
+    }
+
+    public void showTrialBalance() {
+        cardLayout.show(cardPanel, CARD_TRIAL_BALANCE);
     }
 }
 

@@ -164,6 +164,10 @@ public class homePage extends JFrame {
                     windowManager.openChartOfAccounts(window);
                 } else if ("Journal Entry".equals(text)) {
                     windowManager.openJournalEntry(window);
+                } else if ("Ledger".equals(text)) {
+                    windowManager.openLedger(window);
+                } else if ("Trial Balance".equals(text)) {
+                    windowManager.openTrialBalance(window);
                 } else {
                     System.out.println("Clicked: " + text);
                 }

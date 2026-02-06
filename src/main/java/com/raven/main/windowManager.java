@@ -71,6 +71,26 @@ public class windowManager extends JFrame {
         }
     }
 
+    /**
+     * Helper used by other top-level pages to transition to the Ledger
+     * screen while preserving the current session.
+     */
+    public static void openLedger(Window current) {
+        if (current instanceof AppWindow) {
+            ((AppWindow) current).showLedger();
+        }
+    }
+
+    /**
+     * Helper used by other top-level pages to transition to the Trial Balance
+     * screen while preserving the current session.
+     */
+    public static void openTrialBalance(Window current) {
+        if (current instanceof AppWindow) {
+            ((AppWindow) current).showTrialBalance();
+        }
+    }
+
     public static void main(String[] args) {
         // Ensure database schema is present before any UI or queries run.
         DatabaseInitializer.initialize();

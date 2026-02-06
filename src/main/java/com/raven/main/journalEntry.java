@@ -172,7 +172,12 @@ public class journalEntry extends JFrame {
 
         stack.add(searchRow);
 
-        // Full-width card container for saved journal entry mini-cards
+        // Top stack (title + add button + search) stays fixed at top
+        main.add(stack, BorderLayout.NORTH);
+
+        // Full-width card container for saved journal entry mini-cards.
+        // Placed in CENTER so it expands to fill remaining horizontal and
+        // vertical space and resizes with the window.
         entriesContainerCard = new RoundedCardPanel(new Color(0xcdc6c6));
         entriesContainerCard.setLayout(new BorderLayout());
         entriesContainerCard.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
@@ -180,13 +185,12 @@ public class journalEntry extends JFrame {
 
         entriesListPanel = new JPanel();
         entriesListPanel.setOpaque(false);
-        entriesListPanel.setLayout(new BoxLayout(entriesListPanel, BoxLayout.Y_AXIS));
+        // Left-aligned flow layout so mini-cards appear in rows, wrapping
+        // automatically when there is no more horizontal space.
+        entriesListPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 16, 16));
 
         entriesContainerCard.add(entriesListPanel, BorderLayout.CENTER);
-
-        stack.add(entriesContainerCard);
-
-        main.add(stack, BorderLayout.NORTH);
+        main.add(entriesContainerCard, BorderLayout.CENTER);
 
         // initial load of existing journal entries
         reloadJournalCards();
@@ -258,6 +262,10 @@ public class journalEntry extends JFrame {
                         appWindow.showChartOfAccounts();
                     } else if ("Journal Entry".equals(text)) {
                         appWindow.showJournalEntry();
+                    } else if ("Ledger".equals(text)) {
+                        appWindow.showLedger();
+                    } else if ("Trial Balance".equals(text)) {
+                        appWindow.showTrialBalance();
                     } else {
                         System.out.println("Clicked: " + text);
                     }
@@ -357,10 +365,10 @@ public class journalEntry extends JFrame {
                     }
                 };
 
-        // Populate from currentSheetLines
+        // Populate from currentSheetLines (display Title Case, but store UPPERCASE)
         for (JournalEntryRepository.JournalLine line : currentSheetLines) {
             model.addRow(new Object[]{
-                    line.accountName,
+                    ChartOfAccountsRepository.toTitleCase(line.accountName),
                     line.debit == 0 ? "" : line.debit,
                     line.credit == 0 ? "" : line.credit
             });
@@ -415,6 +423,9 @@ public class journalEntry extends JFrame {
                 if (accountName.isEmpty()) {
                     continue;
                 }
+
+                // Normalize account name to UPPERCASE to match database storage
+                accountName = accountName.toUpperCase();
 
                 double debit = 0;
                 double credit = 0;
@@ -582,13 +593,38 @@ public class journalEntry extends JFrame {
         bottom.add(cancelBtn);
         root.add(bottom, BorderLayout.SOUTH);
 
+        // Store actual account names (UPPERCASE) for matching with database
+        java.util.List<String> actualAccountNames = new java.util.ArrayList<>();
+        
+        // Reload to get actual account names
+        try (Connection conn = DBConnection.connect();
+             PreparedStatement ps = conn.prepareStatement("""
+                     SELECT account_name
+                       FROM Chart_of_Accounts
+                      WHERE user_id = ?
+                      ORDER BY created_at DESC, id DESC
+                     """)) {
+            Integer userId = Session.getUserId();
+            if (userId != null) {
+                ps.setInt(1, userId);
+                try (ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        actualAccountNames.add(rs.getString("account_name"));
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            ex.printStackTrace();
+        }
+
         // Row click selects account and goes to debit/credit dialog
         table.addMouseListener(new MouseAdapter() {
             @Override
             public void mouseClicked(MouseEvent e) {
                 int row = table.getSelectedRow();
-                if (row >= 0) {
-                    String accName = String.valueOf(model.getValueAt(row, 2));
+                if (row >= 0 && row < actualAccountNames.size()) {
+                    // Use the actual UPPERCASE account name from database
+                    String accName = actualAccountNames.get(row);
                     dialog.dispose();
                     showDebitCreditDialog(accName);
                 }
@@ -620,7 +656,9 @@ public class journalEntry extends JFrame {
         root.setLayout(new BoxLayout(root, BoxLayout.Y_AXIS));
         root.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        JLabel prompt = new JLabel("Select Debit or Credit for: " + accountName);
+        // Display account name in Title Case for user, but store UPPERCASE
+        String displayAccountName = ChartOfAccountsRepository.toTitleCase(accountName);
+        JLabel prompt = new JLabel("Select Debit or Credit for: " + displayAccountName);
         prompt.setAlignmentX(Component.LEFT_ALIGNMENT);
         root.add(prompt);
         root.add(Box.createVerticalStrut(10));
@@ -721,6 +759,8 @@ public class journalEntry extends JFrame {
                 miniCard.setLayout(new BorderLayout(0, 8));
                 miniCard.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
                 miniCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+                // Make each mini-card occupy roughly half the available width
+                miniCard.setPreferredSize(new Dimension(360, 160));
 
                 JLabel title = new JLabel("Journal Entry #" + entry.id + "  " + entry.createdAt);
                 title.setFont(new Font("SansSerif", Font.BOLD, 14));
@@ -739,7 +779,7 @@ public class journalEntry extends JFrame {
                         };
                 for (JournalEntryRepository.JournalLine line : entry.lines) {
                     model.addRow(new Object[]{
-                            line.accountName,
+                            ChartOfAccountsRepository.toTitleCase(line.accountName),
                             line.debit == 0 ? "" : line.debit,
                             line.credit == 0 ? "" : line.credit
                     });

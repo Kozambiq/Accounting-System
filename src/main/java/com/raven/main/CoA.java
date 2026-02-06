@@ -205,8 +205,14 @@ public class CoA extends JFrame {
                 if (window instanceof AppWindow appWindow) {
                     if ("DashBoard".equals(text)) {
                         appWindow.showDashboard();
+                    } else if ("Chart of Accounts".equals(text)) {
+                        appWindow.showChartOfAccounts();
                     } else if ("Journal Entry".equals(text)) {
                         appWindow.showJournalEntry();
+                    } else if ("Ledger".equals(text)) {
+                        appWindow.showLedger();
+                    } else if ("Trial Balance".equals(text)) {
+                        appWindow.showTrialBalance();
                     } else {
                         System.out.println("Clicked: " + text);
                     }
