@@ -24,10 +24,14 @@ public class homePage extends JFrame {
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1200, 700));
 
-        initUI();
+        setContentPane(createRootPanel());
     }
 
-    private void initUI() {
+    /**
+     * Build the main dashboard view panel. This is used both as the content
+     * pane of this frame and as a card inside a higher-level window manager.
+     */
+    public JPanel createRootPanel() {
         // Root layout
         JPanel root = new JPanel(new BorderLayout());
         root.setBackground(new Color(0xE6E6EB));
@@ -40,8 +44,7 @@ public class homePage extends JFrame {
 
         root.add(sideNav, BorderLayout.WEST);
         root.add(mainContent, BorderLayout.CENTER);
-
-        setContentPane(root);
+        return root;
     }
 
     private JPanel createSideNav() {
@@ -154,8 +157,12 @@ public class homePage extends JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                // TODO: hook up to actual navigation later
-                System.out.println("Clicked: " + text);
+                if ("Chart of Accounts".equals(text)) {
+                    Window window = SwingUtilities.getWindowAncestor(item);
+                    windowManager.openChartOfAccounts(window);
+                } else {
+                    System.out.println("Clicked: " + text);
+                }
             }
         });
 

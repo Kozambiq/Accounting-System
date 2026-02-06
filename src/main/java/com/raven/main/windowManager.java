@@ -37,14 +37,28 @@ public class windowManager extends JFrame {
 
     /**
      * Open the main dashboard (homePage) after a successful and verified login.
-     * This disposes the authentication window and shows the dashboard in a new frame.
+     * This disposes the authentication window and shows the main app window
+     * (with Dashboard and Chart of Accounts cards) in a new frame.
      */
     public void openHomePage() {
         SwingUtilities.invokeLater(() -> {
-            homePage page = new homePage();
-            page.setVisible(true);
+            AppWindow app = new AppWindow();
+            app.setVisible(true);
             dispose();
         });
+    }
+
+    /**
+     * Helper used by other top-level pages (e.g. Dashboard) to transition
+     * to the Chart of Accounts screen while preserving the current session.
+     *
+     * @param current a window to dispose after opening CoA, or {@code null}
+     *                to leave existing windows untouched.
+     */
+    public static void openChartOfAccounts(Window current) {
+        if (current instanceof AppWindow) {
+            ((AppWindow) current).showChartOfAccounts();
+        }
     }
 
     public static void main(String[] args) {

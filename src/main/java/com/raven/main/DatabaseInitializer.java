@@ -97,6 +97,18 @@ public final class DatabaseInitializer {
                     );
                     """);
 
+            // --- CHART OF ACCOUNTS -----------------------------------------
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS Chart_of_Accounts (
+                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id      INTEGER NOT NULL,
+                        account_name TEXT    NOT NULL,
+                        account_type TEXT    NOT NULL,
+                        created_at   TEXT    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    );
+                    """);
+
         } catch (SQLException e) {
             // For a desktop app, logging to stderr is acceptable.
             e.printStackTrace();

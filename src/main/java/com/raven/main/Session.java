@@ -40,6 +40,16 @@ public final class Session {
     }
 
     /**
+     * Convenience alias used by some parts of the UI/DAO layer.
+     *
+     * @return the id of the currently logged-in user, or {@code null} if
+     *         no user is logged in.
+     */
+    public static Integer getUserId() {
+        return currentUserId;
+    }
+
+    /**
      * @return the display name of the currently logged-in user,
      *         or {@code null} if none.
      */

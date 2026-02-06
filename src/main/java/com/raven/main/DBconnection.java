@@ -15,7 +15,7 @@ public class DBConnection {
 
     // Path is relative to the working directory when running the app.
     // Adjust if you move the database file.
-    private static final String URL = "jdbc:sqlite:src/main/resources/database/users.db";
+    private static final String URL = "jdbc:sqlite:src/main/resources/database/app.db";
 
     /**
      * Open a new connection to the SQLite database.
