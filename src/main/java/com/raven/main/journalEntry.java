@@ -7,6 +7,8 @@ import java.awt.event.MouseEvent;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
+import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * Journal Entry main window.
@@ -28,6 +30,7 @@ public class journalEntry extends JFrame {
             new java.util.ArrayList<>();
 
     private JPanel entriesListPanel;
+    private RoundedCardPanel entriesContainerCard;
 
     public journalEntry() {
         setTitle("ACCOUNTING SYSTEM - Journal Entry");
@@ -169,13 +172,19 @@ public class journalEntry extends JFrame {
 
         stack.add(searchRow);
 
-        // Container for saved journal entry cards
+        // Full-width card container for saved journal entry mini-cards
+        entriesContainerCard = new RoundedCardPanel(new Color(0xcdc6c6));
+        entriesContainerCard.setLayout(new BorderLayout());
+        entriesContainerCard.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+        entriesContainerCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+
         entriesListPanel = new JPanel();
         entriesListPanel.setOpaque(false);
         entriesListPanel.setLayout(new BoxLayout(entriesListPanel, BoxLayout.Y_AXIS));
-        entriesListPanel.setBorder(BorderFactory.createEmptyBorder(24, 0, 0, 0));
 
-        stack.add(entriesListPanel);
+        entriesContainerCard.add(entriesListPanel, BorderLayout.CENTER);
+
+        stack.add(entriesContainerCard);
 
         main.add(stack, BorderLayout.NORTH);
 
@@ -240,7 +249,21 @@ public class journalEntry extends JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                System.out.println("Clicked: " + text);
+                // Use the window that owns this nav item (AppWindow card)
+                Window window = SwingUtilities.getWindowAncestor(item);
+                if (window instanceof AppWindow appWindow) {
+                    if ("DashBoard".equals(text)) {
+                        appWindow.showDashboard();
+                    } else if ("Chart of Accounts".equals(text)) {
+                        appWindow.showChartOfAccounts();
+                    } else if ("Journal Entry".equals(text)) {
+                        appWindow.showJournalEntry();
+                    } else {
+                        System.out.println("Clicked: " + text);
+                    }
+                } else {
+                    System.out.println("Clicked: " + text);
+                }
             }
         });
 
@@ -348,14 +371,15 @@ public class journalEntry extends JFrame {
         JScrollPane scroll = new JScrollPane(table);
         root.add(scroll, BorderLayout.CENTER);
 
-        // Bottom: Save / Cancel
+        // Bottom: Save / Cancel (rounded buttons)
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        bottom.setOpaque(false);
 
-        JButton saveBtn = new JButton("Save");
+        RoundedButton saveBtn = new RoundedButton("Save");
         saveBtn.setBackground(new Color(0x2e6417));
         saveBtn.setForeground(Color.WHITE);
 
-        JButton cancelBtn = new JButton("Cancel");
+        RoundedButton cancelBtn = new RoundedButton("Cancel");
         cancelBtn.setBackground(Color.RED);
         cancelBtn.setForeground(Color.WHITE);
 
@@ -488,7 +512,7 @@ public class journalEntry extends JFrame {
                     }
                 };
 
-        // Load from Chart_of_Accounts
+        // Load from Chart_of_Accounts (format like CoA: title case + 12-hour time)
         try (Connection conn = DBConnection.connect();
              PreparedStatement ps = conn.prepareStatement("""
                      SELECT account_name, account_type, created_at
@@ -517,11 +541,20 @@ public class journalEntry extends JFrame {
                             }
                         }
 
+                        // Convert time to 12-hour format with AM/PM
+                        String displayTime = timePart;
+                        try {
+                            if (!timePart.isEmpty()) {
+                                LocalTime t = LocalTime.parse(timePart);
+                                displayTime = t.format(DateTimeFormatter.ofPattern("hh:mm a"));
+                            }
+                        } catch (Exception ignore) { }
+
                         model.addRow(new Object[]{
                                 datePart,
-                                timePart,
-                                accName,
-                                accType
+                                displayTime,
+                                ChartOfAccountsRepository.toTitleCase(accName),
+                                ChartOfAccountsRepository.toTitleCase(accType)
                         });
                     }
                 }
@@ -536,10 +569,13 @@ public class journalEntry extends JFrame {
         root.add(scroll, BorderLayout.CENTER);
 
         JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        JButton doneBtn = new JButton("Done");
+        bottom.setOpaque(false);
+
+        RoundedButton doneBtn = new RoundedButton("Done");
         doneBtn.setBackground(new Color(0x2e6417));
         doneBtn.setForeground(Color.WHITE);
-        JButton cancelBtn = new JButton("Cancel");
+
+        RoundedButton cancelBtn = new RoundedButton("Cancel");
         cancelBtn.setBackground(Color.RED);
         cancelBtn.setForeground(Color.WHITE);
         bottom.add(doneBtn);
@@ -605,10 +641,13 @@ public class journalEntry extends JFrame {
         root.add(Box.createVerticalStrut(12));
 
         JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        JButton doneBtn = new JButton("Done");
+        buttons.setOpaque(false);
+
+        RoundedButton doneBtn = new RoundedButton("Done");
         doneBtn.setBackground(new Color(0x2e6417));
         doneBtn.setForeground(Color.WHITE);
-        JButton cancelBtn = new JButton("Cancel");
+
+        RoundedButton cancelBtn = new RoundedButton("Cancel");
         cancelBtn.setBackground(Color.RED);
         cancelBtn.setForeground(Color.WHITE);
         buttons.add(doneBtn);
@@ -678,17 +717,16 @@ public class journalEntry extends JFrame {
                     journalRepo.loadJournalEntriesForCurrentUser();
 
             for (JournalEntryRepository.JournalEntry entry : entries) {
-                JPanel card = new JPanel(new BorderLayout());
-                card.setOpaque(false);
-                card.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+                RoundedCardPanel miniCard = new RoundedCardPanel(Color.WHITE);
+                miniCard.setLayout(new BorderLayout(0, 8));
+                miniCard.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+                miniCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-                RoundedHeaderBox header = new RoundedHeaderBox(new Color(0xcdc6c6));
-                header.setLayout(new BorderLayout());
                 JLabel title = new JLabel("Journal Entry #" + entry.id + "  " + entry.createdAt);
                 title.setFont(new Font("SansSerif", Font.BOLD, 14));
-                header.add(title, BorderLayout.WEST);
+                title.setForeground(new Color(0x2F2F2F));
 
-                card.add(header, BorderLayout.NORTH);
+                miniCard.add(title, BorderLayout.NORTH);
 
                 // Mini-table for lines
                 String[] cols = {"Account Name", "Debit", "Credit"};
@@ -713,9 +751,15 @@ public class journalEntry extends JFrame {
                 scroll.setPreferredSize(new Dimension(0,
                         Math.min(120, table.getRowHeight() * (entry.lines.size() + 1))));
 
-                card.add(scroll, BorderLayout.CENTER);
+                miniCard.add(scroll, BorderLayout.CENTER);
 
-                entriesListPanel.add(card);
+                // spacing between mini-cards
+                miniCard.setBorder(BorderFactory.createCompoundBorder(
+                        BorderFactory.createEmptyBorder(0, 0, 12, 0),
+                        miniCard.getBorder()
+                ));
+
+                entriesListPanel.add(miniCard);
             }
         } catch (Exception ex) {
             ex.printStackTrace();
@@ -774,6 +818,57 @@ public class journalEntry extends JFrame {
             Color fill = (selected || hovered) ? hoverColor : baseColor;
             g2.setColor(fill);
             int arc = 18;
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    // Simple rounded card panel (background only)
+    private static class RoundedCardPanel extends JPanel {
+        private final Color bgColor;
+
+        public RoundedCardPanel(Color bgColor) {
+            this.bgColor = bgColor;
+            setOpaque(false);
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(bgColor);
+            int arc = 18;
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    // Rounded button for dialogs (no behavior beyond standard JButton)
+    private static class RoundedButton extends JButton {
+        private final int arc = 18;
+
+        public RoundedButton(String text) {
+            super(text);
+            setOpaque(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setContentAreaFilled(false);
+            setFont(new Font("SansSerif", Font.BOLD, 14));
+        }
+
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color bg = getBackground();
+            if (getModel().isPressed()) {
+                bg = bg.darker();
+            } else if (getModel().isRollover()) {
+                bg = bg.brighter();
+            }
+            g2.setColor(bg);
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
             g2.dispose();
             super.paintComponent(g);

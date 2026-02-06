@@ -199,10 +199,16 @@ public class CoA extends JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
-                if ("DashBoard".equals(text)) {
-                    Window window = SwingUtilities.getWindowAncestor(item);
-                    if (window instanceof AppWindow) {
-                        ((AppWindow) window).showDashboard();
+                // Use the window that owns this nav item (AppWindow card),
+                // not the standalone CoA frame.
+                Window window = SwingUtilities.getWindowAncestor(item);
+                if (window instanceof AppWindow appWindow) {
+                    if ("DashBoard".equals(text)) {
+                        appWindow.showDashboard();
+                    } else if ("Journal Entry".equals(text)) {
+                        appWindow.showJournalEntry();
+                    } else {
+                        System.out.println("Clicked: " + text);
                     }
                 } else {
                     System.out.println("Clicked: " + text);

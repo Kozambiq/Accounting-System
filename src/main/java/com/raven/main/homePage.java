@@ -157,9 +157,13 @@ public class homePage extends JFrame {
 
             @Override
             public void mouseClicked(MouseEvent e) {
+                // Use the actual window that owns this nav item (AppWindow card),
+                // not the standalone homePage frame.
+                Window window = SwingUtilities.getWindowAncestor(item);
                 if ("Chart of Accounts".equals(text)) {
-                    Window window = SwingUtilities.getWindowAncestor(item);
                     windowManager.openChartOfAccounts(window);
+                } else if ("Journal Entry".equals(text)) {
+                    windowManager.openJournalEntry(window);
                 } else {
                     System.out.println("Clicked: " + text);
                 }

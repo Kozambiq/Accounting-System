@@ -61,6 +61,16 @@ public class windowManager extends JFrame {
         }
     }
 
+    /**
+     * Helper used by other top-level pages to transition to the Journal Entry
+     * screen while preserving the current session.
+     */
+    public static void openJournalEntry(Window current) {
+        if (current instanceof AppWindow) {
+            ((AppWindow) current).showJournalEntry();
+        }
+    }
+
     public static void main(String[] args) {
         // Ensure database schema is present before any UI or queries run.
         DatabaseInitializer.initialize();

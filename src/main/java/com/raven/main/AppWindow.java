@@ -14,6 +14,7 @@ public class AppWindow extends JFrame {
 
     public static final String CARD_DASHBOARD = "dashboard";
     public static final String CARD_COA = "coa";
+    public static final String CARD_JOURNAL = "journal";
 
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
@@ -35,8 +36,13 @@ public class AppWindow extends JFrame {
         CoA coaFrame = new CoA();
         JPanel coaView = coaFrame.createRootPanel();
 
+        // Journal Entry view card
+        journalEntry journalFrame = new journalEntry();
+        JPanel journalView = (JPanel) journalFrame.getContentPane();
+
         cardPanel.add(dashboardView, CARD_DASHBOARD);
         cardPanel.add(coaView, CARD_COA);
+        cardPanel.add(journalView, CARD_JOURNAL);
 
         setContentPane(cardPanel);
         showDashboard();
@@ -48,6 +54,10 @@ public class AppWindow extends JFrame {
 
     public void showChartOfAccounts() {
         cardLayout.show(cardPanel, CARD_COA);
+    }
+
+    public void showJournalEntry() {
+        cardLayout.show(cardPanel, CARD_JOURNAL);
     }
 }
 
