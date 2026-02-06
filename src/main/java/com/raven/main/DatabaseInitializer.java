@@ -109,6 +109,28 @@ public final class DatabaseInitializer {
                     );
                     """);
 
+            // --- JOURNAL ENTRY HEADERS -------------------------------------
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS journal_entry_headers (
+                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id     INTEGER NOT NULL,
+                        created_at  TEXT    NOT NULL,
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    );
+                    """);
+
+            // --- JOURNAL ENTRY LINES ---------------------------------------
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS journal_entry_lines (
+                        id           INTEGER PRIMARY KEY AUTOINCREMENT,
+                        header_id    INTEGER NOT NULL,
+                        account_name TEXT    NOT NULL,
+                        debit        REAL   NOT NULL DEFAULT 0,
+                        credit       REAL   NOT NULL DEFAULT 0,
+                        FOREIGN KEY (header_id) REFERENCES journal_entry_headers(id) ON DELETE CASCADE
+                    );
+                    """);
+
         } catch (SQLException e) {
             // For a desktop app, logging to stderr is acceptable.
             e.printStackTrace();
