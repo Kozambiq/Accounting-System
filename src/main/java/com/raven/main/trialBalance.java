@@ -7,9 +7,6 @@ import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.text.DecimalFormat;
 
 /**
@@ -27,8 +24,13 @@ public class trialBalance extends JFrame {
     private JPanel trialBalanceContainer;
     private RoundedCardPanel trialBalanceCard;
     private JTable trialBalanceTable;
+    private final ledger ledgerFrame;
+    private JLabel errorLabel;
+    /** True after user has generated at least once; used to auto-refresh when Ledger changes. */
+    private boolean trialBalanceGenerated;
 
-    public trialBalance() {
+    public trialBalance(ledger ledgerFrame) {
+        this.ledgerFrame = ledgerFrame;
         setTitle("ACCOUNTING SYSTEM - Trial Balance");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -109,6 +111,14 @@ public class trialBalance extends JFrame {
 
         stack.add(Box.createVerticalStrut(16));
 
+        // Error message (shown when no ledger cards)
+        errorLabel = new JLabel();
+        errorLabel.setForeground(Color.RED);
+        errorLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        errorLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        stack.add(errorLabel);
+        stack.add(Box.createVerticalStrut(8));
+
         // Rounded green "Generate Trial Balance" button
         RoundedButton generateBtn = new RoundedButton("Generate Trial Balance");
         generateBtn.setBackground(new Color(0x2e6417));
@@ -116,12 +126,7 @@ public class trialBalance extends JFrame {
         generateBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
         generateBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
-        generateBtn.addMouseListener(new MouseAdapter() {
-            @Override
-            public void mouseClicked(MouseEvent e) {
-                showGenerateTrialBalanceDialog();
-            }
-        });
+        generateBtn.addActionListener(e -> generateTrialBalanceFromLedger());
 
         stack.add(generateBtn);
         stack.add(Box.createVerticalStrut(16));
@@ -210,6 +215,8 @@ public class trialBalance extends JFrame {
                         appWindow.showLedger();
                     } else if ("Trial Balance".equals(text)) {
                         appWindow.showTrialBalance();
+                    } else if ("Financial Reports".equals(text)) {
+                        appWindow.showFinancialReports();
                     } else {
                         System.out.println("Clicked: " + text);
                     }
@@ -231,203 +238,39 @@ public class trialBalance extends JFrame {
 
     // ----- Generate Trial Balance flow ---------------------------------------------
 
-    private void showGenerateTrialBalanceDialog() {
-        JDialog dialog = new JDialog(this, "Generate Trial Balance", true);
-        dialog.setLayout(new BorderLayout(10, 10));
-        dialog.setMinimumSize(new Dimension(700, 500));
-
-        JPanel root = new JPanel(new BorderLayout(8, 8));
-        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-
-        // Table with Account Name, Debit, Credit columns
-        String[] cols = {"Account Name", "Debit", "Credit"};
-        DefaultTableModel model = new DefaultTableModel(cols, 0) {
-            @Override
-            public boolean isCellEditable(int row, int column) {
-                return false;
-            }
-        };
-
-        // Load all accounts and calculate balances
-        java.util.Map<String, AccountBalance> accountBalances = calculateAccountBalances();
-
-        double totalDebit = 0.0;
-        double totalCredit = 0.0;
-
-        for (java.util.Map.Entry<String, AccountBalance> entry : accountBalances.entrySet()) {
-            String accountName = entry.getKey();
-            AccountBalance balance = entry.getValue();
-
-            double debit = 0.0;
-            double credit = 0.0;
-
-            if (balance.balance > 0) {
-                debit = balance.balance;
-                totalDebit += debit;
-            } else if (balance.balance < 0) {
-                credit = Math.abs(balance.balance);
-                totalCredit += credit;
-            }
-
-            model.addRow(new Object[]{
-                    ChartOfAccountsRepository.toTitleCase(accountName),
-                    debit == 0 ? "" : formatNumber(debit),
-                    credit == 0 ? "" : formatNumber(credit)
-            });
-        }
-
-        // Add totals row
-        model.addRow(new Object[]{"TOTAL", formatNumber(totalDebit), formatNumber(totalCredit)});
-
-        JTable table = new JTable(model);
-        table.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        
-        // Highlight totals row if debit != credit
-        if (Math.abs(totalDebit - totalCredit) > 0.01) {
-            table.setDefaultRenderer(Object.class, new TableCellRenderer() {
-                private DefaultTableCellRenderer renderer = new DefaultTableCellRenderer();
-                
-                @Override
-                public Component getTableCellRendererComponent(JTable table, Object value,
-                                                              boolean isSelected, boolean hasFocus,
-                                                              int row, int column) {
-                    Component c = renderer.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
-                    if (row == table.getRowCount() - 1) {
-                        c.setBackground(Color.RED);
-                        c.setForeground(Color.WHITE);
-                    } else {
-                        c.setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
-                        c.setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
-                    }
-                    return c;
-                }
-            });
-        }
-        
-        JScrollPane scroll = new JScrollPane(table);
-        root.add(scroll, BorderLayout.CENTER);
-
-        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
-        bottom.setOpaque(false);
-
-        RoundedButton doneBtn = new RoundedButton("Done");
-        doneBtn.setBackground(new Color(0x2e6417));
-        doneBtn.setForeground(Color.WHITE);
-
-        RoundedButton cancelBtn = new RoundedButton("Cancel");
-        cancelBtn.setBackground(Color.RED);
-        cancelBtn.setForeground(Color.WHITE);
-
-        bottom.add(doneBtn);
-        bottom.add(cancelBtn);
-        root.add(bottom, BorderLayout.SOUTH);
-
-        // Validation message
-        if (Math.abs(totalDebit - totalCredit) > 0.01) {
-            JLabel warningLabel = new JLabel(
-                    "<html><font color='red'>Warning: Total Debit (" + formatNumber(totalDebit) + 
-                    ") does not equal Total Credit (" + formatNumber(totalCredit) + ")</font></html>");
-            warningLabel.setBorder(BorderFactory.createEmptyBorder(8, 0, 8, 0));
-            root.add(warningLabel, BorderLayout.NORTH);
-        }
-
-        doneBtn.addActionListener(e -> {
-            dialog.dispose();
-            displayTrialBalance(accountBalances);
-        });
-
-        cancelBtn.addActionListener(e -> dialog.dispose());
-
-        dialog.add(root, BorderLayout.CENTER);
-        dialog.pack();
-        dialog.setLocationRelativeTo(this);
-        dialog.setVisible(true);
+    /**
+     * Refresh Trial Balance table from current Ledger data. Called when user clicks
+     * Generate Trial Balance or when Ledger mini cards are added/deleted (only if table was already generated).
+     */
+    public void refreshTrialBalanceFromLedger() {
+        if (!trialBalanceGenerated) return;
+        generateTrialBalanceFromLedger();
     }
 
     /**
-     * Calculate balances for all accounts from journal entries.
+     * Generate Trial Balance from Ledger mini cards only. No modal.
+     * Displays inline error if no ledger cards exist.
      */
-    private java.util.Map<String, AccountBalance> calculateAccountBalances() {
-        java.util.Map<String, AccountBalance> balances = new java.util.HashMap<>();
+    private void generateTrialBalanceFromLedger() {
+        java.util.List<ledger.LedgerAccountBalance> ledgerData = ledgerFrame.getLedgerDataForTrialBalance();
 
-        Integer userId = Session.getUserId();
-        if (userId == null) {
-            return balances;
+        if (ledgerData.isEmpty()) {
+            errorLabel.setText("No ledger records found. Please generate ledger entries before creating a trial balance.");
+            errorLabel.setVisible(true);
+            trialBalanceContainer.removeAll();
+            trialBalanceContainer.revalidate();
+            trialBalanceContainer.repaint();
+            trialBalanceGenerated = false;
+            return;
         }
 
-        // Get all accounts for the current user
-        try (Connection conn = DBConnection.connect();
-             PreparedStatement ps = conn.prepareStatement("""
-                     SELECT id, account_name, account_type
-                       FROM Chart_of_Accounts
-                      WHERE user_id = ?
-                     """)) {
-            ps.setInt(1, userId);
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    String accountName = rs.getString("account_name");
-                    String accountType = rs.getString("account_type");
-
-                    // Calculate balance for this account
-                    double balance = calculateBalanceForAccount(accountName, accountType, userId);
-
-                    balances.put(accountName, new AccountBalance(accountName, accountType, balance));
-                }
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return balances;
+        trialBalanceGenerated = true;
+        errorLabel.setText("");
+        errorLabel.setVisible(false);
+        displayTrialBalanceFromLedger(ledgerData);
     }
 
-    /**
-     * Calculate balance for a specific account based on account type and journal entries.
-     */
-    private double calculateBalanceForAccount(String accountName, String accountType, int userId) {
-        double balance = 0.0;
-
-        String accountTypeUpper = accountType.toUpperCase();
-        boolean isAssetOrExpense = accountTypeUpper.equals("ASSET") ||
-                                   accountTypeUpper.equals("EXPENSE") ||
-                                   accountTypeUpper.equals("EXPENSES");
-
-        String sql = """
-                SELECT l.debit, l.credit
-                  FROM journal_entry_headers h
-                  JOIN journal_entry_lines l ON l.header_id = h.id
-                 WHERE h.user_id = ? AND UPPER(l.account_name) = UPPER(?)
-                """;
-
-        try (Connection conn = DBConnection.connect();
-             PreparedStatement ps = conn.prepareStatement(sql)) {
-            ps.setInt(1, userId);
-            ps.setString(2, accountName);
-
-            try (ResultSet rs = ps.executeQuery()) {
-                while (rs.next()) {
-                    double debit = rs.getDouble("debit");
-                    double credit = rs.getDouble("credit");
-
-                    if (isAssetOrExpense) {
-                        balance = balance + debit - credit;
-                    } else {
-                        // Liability, Equity, or Revenue
-                        balance = balance + credit - debit;
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            ex.printStackTrace();
-        }
-
-        return balance;
-    }
-
-    /**
-     * Display the trial balance table in the main window.
-     */
-    private void displayTrialBalance(java.util.Map<String, AccountBalance> accountBalances) {
+    private void displayTrialBalanceFromLedger(java.util.List<ledger.LedgerAccountBalance> ledgerData) {
         trialBalanceContainer.removeAll();
 
         String[] cols = {"Account Name", "Debit", "Credit"};
@@ -441,51 +284,80 @@ public class trialBalance extends JFrame {
         double totalDebit = 0.0;
         double totalCredit = 0.0;
 
-        for (java.util.Map.Entry<String, AccountBalance> entry : accountBalances.entrySet()) {
-            String accountName = entry.getKey();
-            AccountBalance balance = entry.getValue();
-
+        for (ledger.LedgerAccountBalance item : ledgerData) {
+            // Ledger: Asset/Expense → positive balance = debit; Liability/Equity/Revenue → positive balance = credit
             double debit = 0.0;
             double credit = 0.0;
+            String typeUpper = (item.accountType != null ? item.accountType : "").toUpperCase();
+            boolean isAssetOrExpense = typeUpper.equals("ASSET") || typeUpper.equals("EXPENSE") || typeUpper.equals("EXPENSES");
 
-            if (balance.balance > 0) {
-                debit = balance.balance;
-                totalDebit += debit;
-            } else if (balance.balance < 0) {
-                credit = Math.abs(balance.balance);
-                totalCredit += credit;
+            if (item.balance > 0) {
+                if (isAssetOrExpense) {
+                    debit = item.balance;
+                    totalDebit += debit;
+                } else {
+                    credit = item.balance;
+                    totalCredit += credit;
+                }
+            } else if (item.balance < 0) {
+                if (isAssetOrExpense) {
+                    credit = Math.abs(item.balance);
+                    totalCredit += credit;
+                } else {
+                    debit = Math.abs(item.balance);
+                    totalDebit += debit;
+                }
             }
+            // balance == 0: leave both columns blank
 
             model.addRow(new Object[]{
-                    ChartOfAccountsRepository.toTitleCase(accountName),
+                    ChartOfAccountsRepository.toTitleCase(item.accountName),
                     debit == 0 ? "" : formatNumber(debit),
                     credit == 0 ? "" : formatNumber(credit)
             });
         }
 
-        // Add totals row
+        // Totals row (positive values only)
         model.addRow(new Object[]{"TOTAL", formatNumber(totalDebit), formatNumber(totalCredit)});
 
         trialBalanceTable = new JTable(model);
         trialBalanceTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
         trialBalanceTable.setFillsViewportHeight(true);
-        
-        // Highlight totals row if debit != credit
-        if (Math.abs(totalDebit - totalCredit) > 0.01) {
-            trialBalanceTable.setDefaultRenderer(Object.class, new TableCellRenderer() {
-                private DefaultTableCellRenderer renderer = new DefaultTableCellRenderer();
-                
+
+        final boolean totalsMismatch = Math.abs(totalDebit - totalCredit) > 0.01;
+
+        // Right-align Debit and Credit columns; optionally highlight totals row when unbalanced
+        TableCellRenderer rightAlignRenderer = new DefaultTableCellRenderer() {
+            @Override
+            public Component getTableCellRendererComponent(JTable table, Object value,
+                                                          boolean isSelected, boolean hasFocus,
+                                                          int row, int column) {
+                Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                setHorizontalAlignment(SwingConstants.RIGHT);
+                if (totalsMismatch && row == table.getRowCount() - 1) {
+                    c.setBackground(Color.RED);
+                    c.setForeground(Color.WHITE);
+                } else {
+                    c.setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
+                    c.setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
+                }
+                return c;
+            }
+        };
+        trialBalanceTable.getColumnModel().getColumn(1).setCellRenderer(rightAlignRenderer);
+        trialBalanceTable.getColumnModel().getColumn(2).setCellRenderer(rightAlignRenderer);
+
+        // Account Name column: left-align; highlight totals row when unbalanced
+        if (totalsMismatch) {
+            trialBalanceTable.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
                 @Override
                 public Component getTableCellRendererComponent(JTable table, Object value,
                                                               boolean isSelected, boolean hasFocus,
                                                               int row, int column) {
-                    Component c = renderer.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
+                    Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                     if (row == table.getRowCount() - 1) {
                         c.setBackground(Color.RED);
                         c.setForeground(Color.WHITE);
-                    } else {
-                        c.setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
-                        c.setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
                     }
                     return c;
                 }
@@ -495,10 +367,9 @@ public class trialBalance extends JFrame {
         JScrollPane scroll = new JScrollPane(trialBalanceTable);
         trialBalanceContainer.add(scroll, BorderLayout.CENTER);
 
-        // Add warning label if totals don't match
         if (Math.abs(totalDebit - totalCredit) > 0.01) {
             JLabel warningLabel = new JLabel(
-                    "<html><font color='red' size='+1'><b>Warning: Total Debit (" + formatNumber(totalDebit) + 
+                    "<html><font color='red' size='+1'><b>Warning: Total Debit (" + formatNumber(totalDebit) +
                     ") does not equal Total Credit (" + formatNumber(totalCredit) + ")</b></font></html>");
             warningLabel.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
             trialBalanceContainer.add(warningLabel, BorderLayout.NORTH);
@@ -514,21 +385,6 @@ public class trialBalance extends JFrame {
     private String formatNumber(double value) {
         DecimalFormat formatter = new DecimalFormat("#,##0.00");
         return formatter.format(value);
-    }
-
-    /**
-     * Inner class to hold account balance information.
-     */
-    private static class AccountBalance {
-        final String accountName;
-        final String accountType;
-        final double balance;
-
-        AccountBalance(String accountName, String accountType, double balance) {
-            this.accountName = accountName;
-            this.accountType = accountType;
-            this.balance = balance;
-        }
     }
 
     // ----- Shared rounded components ----------------------------------------

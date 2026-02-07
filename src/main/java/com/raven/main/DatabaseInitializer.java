@@ -112,12 +112,19 @@ public final class DatabaseInitializer {
             // --- JOURNAL ENTRY HEADERS -------------------------------------
             stmt.execute("""
                     CREATE TABLE IF NOT EXISTS journal_entry_headers (
-                        id          INTEGER PRIMARY KEY AUTOINCREMENT,
-                        user_id     INTEGER NOT NULL,
-                        created_at  TEXT    NOT NULL,
+                        id               INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id          INTEGER NOT NULL,
+                        entry_name       TEXT,
+                        created_at       TEXT    NOT NULL,
                         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
                     );
                     """);
+            // Add entry_name if table already existed without it
+            try {
+                stmt.execute("ALTER TABLE journal_entry_headers ADD COLUMN entry_name TEXT");
+            } catch (SQLException e) {
+                // Column already exists
+            }
 
             // --- JOURNAL ENTRY LINES ---------------------------------------
             stmt.execute("""

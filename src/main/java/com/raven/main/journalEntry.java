@@ -1,6 +1,8 @@
 package com.raven.main;
 
 import javax.swing.*;
+import javax.swing.event.DocumentEvent;
+import javax.swing.event.DocumentListener;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -28,9 +30,15 @@ public class journalEntry extends JFrame {
     // In-memory sheet rows for the current journal entry being edited
     private java.util.List<JournalEntryRepository.JournalLine> currentSheetLines =
             new java.util.ArrayList<>();
+    /** Entry name for the journal entry being created (Title Case when saving). */
+    private String currentEntryName = "";
 
     private JPanel entriesListPanel;
     private RoundedCardPanel entriesContainerCard;
+    private JTextField searchField;
+    /** Last loaded entries for search reorder/highlight without reloading from DB. */
+    private java.util.List<JournalEntryRepository.JournalEntry> lastEntries =
+            new java.util.ArrayList<>();
 
     public journalEntry() {
         setTitle("ACCOUNTING SYSTEM - Journal Entry");
@@ -151,13 +159,21 @@ public class journalEntry extends JFrame {
         searchRow.setAlignmentX(Component.LEFT_ALIGNMENT);
         searchRow.setMaximumSize(new Dimension(420, 40));
 
-        JTextField searchField = new JTextField();
+        searchField = new JTextField();
         // Solid 1px black outline with inner padding
         searchField.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(Color.BLACK, 1),
                 BorderFactory.createEmptyBorder(8, 10, 8, 10)
         ));
         searchField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        searchField.getDocument().addDocumentListener(new DocumentListener() {
+            @Override
+            public void insertUpdate(DocumentEvent e) { applySearchFilter(); }
+            @Override
+            public void removeUpdate(DocumentEvent e) { applySearchFilter(); }
+            @Override
+            public void changedUpdate(DocumentEvent e) { applySearchFilter(); }
+        });
 
         RoundedHeaderBox searchButton = new RoundedHeaderBox(new Color(0x2e6417));
         searchButton.setPreferredSize(new Dimension(90, 40));
@@ -266,6 +282,8 @@ public class journalEntry extends JFrame {
                         appWindow.showLedger();
                     } else if ("Trial Balance".equals(text)) {
                         appWindow.showTrialBalance();
+                    } else if ("Financial Reports".equals(text)) {
+                        appWindow.showFinancialReports();
                     } else {
                         System.out.println("Clicked: " + text);
                     }
@@ -292,6 +310,11 @@ public class journalEntry extends JFrame {
         showAddEntryDialog();
     }
 
+    /** Returns true if entry name is valid (non-empty after trim). */
+    private boolean isEntryNameValid(String s) {
+        return s != null && !s.trim().isEmpty();
+    }
+
     private void showAddEntryDialog() {
         JDialog dialog = new JDialog(this, "New Journal Entry", true);
         dialog.setLayout(new BorderLayout(10, 10));
@@ -300,27 +323,45 @@ public class journalEntry extends JFrame {
         content.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
         content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
 
-        JLabel label = new JLabel("Involved accounts:");
-        label.setFont(new Font("SansSerif", Font.BOLD, 14));
-        label.setAlignmentX(Component.LEFT_ALIGNMENT);
-        content.add(label);
+        // Entry Name row
+        JPanel entryNameRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        entryNameRow.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel entryNameLabel = new JLabel("Entry Name:");
+        entryNameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        JTextField entryNameField = new JTextField(24);
+        entryNameField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        entryNameRow.add(entryNameLabel);
+        entryNameRow.add(entryNameField);
+        content.add(entryNameRow);
         content.add(Box.createVerticalStrut(12));
 
-        RoundedHeaderBox selectBtn = new RoundedHeaderBox(new Color(0x2e6417));
-        selectBtn.setLayout(new GridBagLayout());
-        selectBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        JLabel btnText = new JLabel("Add / Select accounts");
-        btnText.setForeground(Color.WHITE);
-        btnText.setFont(new Font("SansSerif", Font.BOLD, 14));
-        selectBtn.add(btnText);
+        RoundedButton selectBtn = new RoundedButton("Add / Select accounts");
+        selectBtn.setBackground(new Color(0x2e6417));
+        selectBtn.setForeground(Color.WHITE);
         selectBtn.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        selectBtn.addMouseListener(new MouseAdapter() {
+        // Disable button by default; enable only when entry name is valid
+        selectBtn.setEnabled(false);
+
+        entryNameField.getDocument().addDocumentListener(new DocumentListener() {
             @Override
-            public void mouseClicked(MouseEvent e) {
-                dialog.dispose();
-                showSheetDialog();
+            public void insertUpdate(DocumentEvent e) { updateAddButtonState(); }
+            @Override
+            public void removeUpdate(DocumentEvent e) { updateAddButtonState(); }
+            @Override
+            public void changedUpdate(DocumentEvent e) { updateAddButtonState(); }
+
+            private void updateAddButtonState() {
+                selectBtn.setEnabled(isEntryNameValid(entryNameField.getText()));
             }
+        });
+
+        selectBtn.addActionListener(e -> {
+            String name = entryNameField.getText();
+            if (!isEntryNameValid(name)) return;
+            currentEntryName = name.trim();
+            dialog.dispose();
+            showSheetDialog();
         });
 
         content.add(selectBtn);
@@ -488,7 +529,7 @@ public class journalEntry extends JFrame {
             currentSheetLines = lines;
 
             try {
-                journalRepo.saveJournalEntry(currentSheetLines);
+                journalRepo.saveJournalEntry(currentEntryName, currentSheetLines);
                 reloadJournalCards();
                 dialog.dispose();
             } catch (Exception ex) {
@@ -512,6 +553,22 @@ public class journalEntry extends JFrame {
 
         JPanel root = new JPanel(new BorderLayout(8, 8));
         root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        // Top row: "Select Account" on left, "Entry Name:" + text field on right
+        JPanel topRow = new JPanel(new BorderLayout());
+        JLabel selectLabel = new JLabel("Select Account");
+        selectLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        topRow.add(selectLabel, BorderLayout.WEST);
+        JPanel entryNamePanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        JLabel entryNameLabel = new JLabel("Entry Name:");
+        entryNameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        JTextField entryNameField = new JTextField(20);
+        entryNameField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        entryNameField.setText(currentEntryName);
+        entryNamePanel.add(entryNameLabel);
+        entryNamePanel.add(entryNameField);
+        topRow.add(entryNamePanel, BorderLayout.EAST);
+        root.add(topRow, BorderLayout.NORTH);
 
         // Table with same columns as CoA (without Utility)
         String[] cols = {"Date", "Time", "Account Name", "Account Type"};
@@ -623,7 +680,7 @@ public class journalEntry extends JFrame {
             public void mouseClicked(MouseEvent e) {
                 int row = table.getSelectedRow();
                 if (row >= 0 && row < actualAccountNames.size()) {
-                    // Use the actual UPPERCASE account name from database
+                    currentEntryName = entryNameField.getText();
                     String accName = actualAccountNames.get(row);
                     dialog.dispose();
                     showDebitCreditDialog(accName);
@@ -632,11 +689,13 @@ public class journalEntry extends JFrame {
         });
 
         doneBtn.addActionListener(e -> {
+            currentEntryName = entryNameField.getText();
             dialog.dispose();
             showSheetDialog();
         });
 
         cancelBtn.addActionListener(e -> {
+            currentEntryName = entryNameField.getText();
             dialog.dispose();
             showSheetDialog();
         });
@@ -748,65 +807,243 @@ public class journalEntry extends JFrame {
 
     private void reloadJournalCards() {
         if (entriesListPanel == null) return;
-        entriesListPanel.removeAll();
-
         try {
-            java.util.List<JournalEntryRepository.JournalEntry> entries =
-                    journalRepo.loadJournalEntriesForCurrentUser();
-
-            for (JournalEntryRepository.JournalEntry entry : entries) {
-                RoundedCardPanel miniCard = new RoundedCardPanel(Color.WHITE);
-                miniCard.setLayout(new BorderLayout(0, 8));
-                miniCard.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
-                miniCard.setAlignmentX(Component.LEFT_ALIGNMENT);
-                // Make each mini-card occupy roughly half the available width
-                miniCard.setPreferredSize(new Dimension(360, 160));
-
-                JLabel title = new JLabel("Journal Entry #" + entry.id + "  " + entry.createdAt);
-                title.setFont(new Font("SansSerif", Font.BOLD, 14));
-                title.setForeground(new Color(0x2F2F2F));
-
-                miniCard.add(title, BorderLayout.NORTH);
-
-                // Mini-table for lines
-                String[] cols = {"Account Name", "Debit", "Credit"};
-                javax.swing.table.DefaultTableModel model =
-                        new javax.swing.table.DefaultTableModel(cols, 0) {
-                            @Override
-                            public boolean isCellEditable(int row, int column) {
-                                return false;
-                            }
-                        };
-                for (JournalEntryRepository.JournalLine line : entry.lines) {
-                    model.addRow(new Object[]{
-                            ChartOfAccountsRepository.toTitleCase(line.accountName),
-                            line.debit == 0 ? "" : line.debit,
-                            line.credit == 0 ? "" : line.credit
-                    });
-                }
-
-                JTable table = new JTable(model);
-                table.setFillsViewportHeight(true);
-                JScrollPane scroll = new JScrollPane(table);
-                scroll.setPreferredSize(new Dimension(0,
-                        Math.min(120, table.getRowHeight() * (entry.lines.size() + 1))));
-
-                miniCard.add(scroll, BorderLayout.CENTER);
-
-                // spacing between mini-cards
-                miniCard.setBorder(BorderFactory.createCompoundBorder(
-                        BorderFactory.createEmptyBorder(0, 0, 12, 0),
-                        miniCard.getBorder()
-                ));
-
-                entriesListPanel.add(miniCard);
-            }
+            lastEntries = journalRepo.loadJournalEntriesForCurrentUser();
         } catch (Exception ex) {
             ex.printStackTrace();
+            lastEntries = new java.util.ArrayList<>();
+        }
+        applySearchFilter();
+    }
+
+    /** Apply search text: move matching cards to top and highlight with light green; clear restores order and background. */
+    private void applySearchFilter() {
+        if (entriesListPanel == null) return;
+        entriesListPanel.removeAll();
+        String search = searchField != null ? searchField.getText().trim().toLowerCase() : "";
+        boolean hasSearch = !search.isEmpty();
+
+        // Order: matching first (by entry name), then rest. Matching get light green background.
+        java.util.List<JournalEntryRepository.JournalEntry> matching = new java.util.ArrayList<>();
+        java.util.List<JournalEntryRepository.JournalEntry> other = new java.util.ArrayList<>();
+        for (JournalEntryRepository.JournalEntry e : lastEntries) {
+            String name = (e.entryName != null ? e.entryName : "").toLowerCase();
+            if (hasSearch && name.contains(search)) matching.add(e);
+            else other.add(e);
+        }
+        for (JournalEntryRepository.JournalEntry entry : matching) {
+            entriesListPanel.add(createMiniCard(entry, true));
+        }
+        for (JournalEntryRepository.JournalEntry entry : other) {
+            entriesListPanel.add(createMiniCard(entry, false));
         }
 
         entriesListPanel.revalidate();
         entriesListPanel.repaint();
+    }
+
+    private JPanel createMiniCard(JournalEntryRepository.JournalEntry entry, boolean highlight) {
+        RoundedCardPanel miniCard = new RoundedCardPanel(highlight ? new Color(0xC8E6C9) : Color.WHITE);
+        miniCard.setLayout(new BorderLayout(0, 8));
+        miniCard.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+        miniCard.setAlignmentX(Component.LEFT_ALIGNMENT);
+        miniCard.setPreferredSize(new Dimension(360, 180));
+
+        String titleText = entry.entryName != null && !entry.entryName.isEmpty()
+                ? entry.entryName + "  (" + entry.createdAt + ")"
+                : "Journal Entry #" + entry.id + "  " + entry.createdAt;
+        JLabel title = new JLabel(titleText);
+        title.setFont(new Font("SansSerif", Font.BOLD, 14));
+        title.setForeground(new Color(0x2F2F2F));
+        miniCard.add(title, BorderLayout.NORTH);
+
+        // Mini-table for lines
+        String[] cols = {"Account Name", "Debit", "Credit"};
+        javax.swing.table.DefaultTableModel model =
+                new javax.swing.table.DefaultTableModel(cols, 0) {
+                    @Override
+                    public boolean isCellEditable(int row, int column) {
+                        return false;
+                    }
+                };
+        for (JournalEntryRepository.JournalLine line : entry.lines) {
+            model.addRow(new Object[]{
+                    ChartOfAccountsRepository.toTitleCase(line.accountName),
+                    line.debit == 0 ? "" : line.debit,
+                    line.credit == 0 ? "" : line.credit
+            });
+        }
+
+        JTable table = new JTable(model);
+        table.setFillsViewportHeight(true);
+        JScrollPane scroll = new JScrollPane(table);
+        scroll.setPreferredSize(new Dimension(0, Math.min(100, table.getRowHeight() * (entry.lines.size() + 1))));
+        miniCard.add(scroll, BorderLayout.CENTER);
+
+        // Lower-right: Edit and Delete buttons
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        buttonRow.setOpaque(false);
+        RoundedButton editBtn = new RoundedButton("Edit");
+        editBtn.setBackground(new Color(0x2e6417));
+        editBtn.setForeground(Color.WHITE);
+        RoundedButton deleteBtn = new RoundedButton("Delete");
+        deleteBtn.setBackground(Color.RED);
+        deleteBtn.setForeground(Color.WHITE);
+        int entryId = entry.id;
+        editBtn.addActionListener(e -> showEditDialog(entryId));
+        deleteBtn.addActionListener(e -> deleteEntry(entryId));
+        buttonRow.add(editBtn);
+        buttonRow.add(deleteBtn);
+        miniCard.add(buttonRow, BorderLayout.SOUTH);
+
+        return miniCard;
+    }
+
+    private void showEditDialog(int headerId) {
+        JournalEntryRepository.JournalEntry entry;
+        try {
+            entry = journalRepo.loadById(headerId);
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Could not load journal entry.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+        if (entry == null) {
+            JOptionPane.showMessageDialog(this, "Journal entry not found or access denied.", "Error", JOptionPane.ERROR_MESSAGE);
+            return;
+        }
+
+        JDialog dialog = new JDialog(this, "Edit Journal Entry", true);
+        dialog.setLayout(new BorderLayout(10, 10));
+        dialog.setMinimumSize(new Dimension(500, 400));
+
+        JPanel root = new JPanel(new BorderLayout(8, 8));
+        root.setBorder(BorderFactory.createEmptyBorder(12, 12, 12, 12));
+
+        // Top: Entry Name (editable) and Transaction date (read-only)
+        JPanel topPanel = new JPanel(new BorderLayout());
+        topPanel.setOpaque(false);
+        JPanel entryNameRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 8, 0));
+        entryNameRow.setOpaque(false);
+        JLabel entryNameLabel = new JLabel("Entry Name:");
+        entryNameLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        JTextField editEntryNameField = new JTextField(20);
+        editEntryNameField.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        editEntryNameField.setText(entry.entryName != null ? entry.entryName : "");
+        entryNameRow.add(entryNameLabel);
+        entryNameRow.add(editEntryNameField);
+        topPanel.add(entryNameRow, BorderLayout.WEST);
+        JLabel dateLabel = new JLabel("Transaction date: " + entry.createdAt);
+        dateLabel.setFont(new Font("SansSerif", Font.PLAIN, 14));
+        topPanel.add(dateLabel, BorderLayout.EAST);
+        root.add(topPanel, BorderLayout.NORTH);
+
+        String[] cols = {"Account Name", "Debit", "Credit"};
+        javax.swing.table.DefaultTableModel model =
+                new javax.swing.table.DefaultTableModel(cols, 0) {
+                    @Override
+                    public boolean isCellEditable(int row, int column) {
+                        return column == 1 || column == 2; // only Debit/Credit editable
+                    }
+                };
+        for (JournalEntryRepository.JournalLine line : entry.lines) {
+            model.addRow(new Object[]{
+                    ChartOfAccountsRepository.toTitleCase(line.accountName),
+                    line.debit == 0 ? "" : line.debit,
+                    line.credit == 0 ? "" : line.credit
+            });
+        }
+
+        JTable table = new JTable(model);
+        table.setFillsViewportHeight(true);
+        root.add(new JScrollPane(table), BorderLayout.CENTER);
+
+        JPanel bottom = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        bottom.setOpaque(false);
+        RoundedButton saveBtn = new RoundedButton("Save");
+        saveBtn.setBackground(new Color(0x2e6417));
+        saveBtn.setForeground(Color.WHITE);
+        RoundedButton cancelBtn = new RoundedButton("Cancel");
+        cancelBtn.setBackground(Color.RED);
+        cancelBtn.setForeground(Color.WHITE);
+        bottom.add(saveBtn);
+        bottom.add(cancelBtn);
+        root.add(bottom, BorderLayout.SOUTH);
+
+        saveBtn.addActionListener(e -> {
+            String editEntryName = editEntryNameField.getText();
+            if (!isEntryNameValid(editEntryName)) {
+                JOptionPane.showMessageDialog(dialog, "Entry Name must not be empty or whitespace.", "Validation error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            java.util.List<JournalEntryRepository.JournalLine> lines = new java.util.ArrayList<>();
+            for (int r = 0; r < model.getRowCount(); r++) {
+                // Account name column is read-only; use stored UPPERCASE name from entry
+                String accountNameStored = entry.lines.get(r).accountName;
+                String debitStr = String.valueOf(model.getValueAt(r, 1)).trim();
+                String creditStr = String.valueOf(model.getValueAt(r, 2)).trim();
+                double debit = 0, credit = 0;
+                if (!debitStr.isEmpty()) {
+                    try { debit = Double.parseDouble(debitStr); } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(dialog, "Invalid debit on row " + (r + 1), "Validation error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    if (debit < 0) {
+                        JOptionPane.showMessageDialog(dialog, "Negative values not allowed on row " + (r + 1), "Validation error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+                if (!creditStr.isEmpty()) {
+                    try { credit = Double.parseDouble(creditStr); } catch (NumberFormatException ex) {
+                        JOptionPane.showMessageDialog(dialog, "Invalid credit on row " + (r + 1), "Validation error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                    if (credit < 0) {
+                        JOptionPane.showMessageDialog(dialog, "Negative values not allowed on row " + (r + 1), "Validation error", JOptionPane.ERROR_MESSAGE);
+                        return;
+                    }
+                }
+                if ((debit > 0 && credit > 0) || (debit == 0 && credit == 0)) {
+                    JOptionPane.showMessageDialog(dialog, "Each row must have either Debit or Credit (not both, not both zero) on row " + (r + 1), "Validation error", JOptionPane.ERROR_MESSAGE);
+                    return;
+                }
+                lines.add(new JournalEntryRepository.JournalLine(accountNameStored, debit, credit));
+            }
+            if (lines.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "At least one line required.", "Validation error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            try {
+                journalRepo.updateJournalEntry(headerId, editEntryName.trim(), lines);
+                reloadJournalCards();
+                dialog.dispose();
+            } catch (Exception ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(dialog, "Failed to update.", "Error", JOptionPane.ERROR_MESSAGE);
+            }
+        });
+        cancelBtn.addActionListener(ev -> dialog.dispose());
+
+        dialog.add(root, BorderLayout.CENTER);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
+    }
+
+    private void deleteEntry(int headerId) {
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to delete this journal entry?",
+                "Delete Journal Entry",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        if (choice != JOptionPane.YES_OPTION) return;
+        try {
+            journalRepo.deleteJournalEntry(headerId);
+            reloadJournalCards();
+        } catch (Exception ex) {
+            ex.printStackTrace();
+            JOptionPane.showMessageDialog(this, "Could not delete journal entry.", "Error", JOptionPane.ERROR_MESSAGE);
+        }
     }
 
     // ----- Shared rounded components ----------------------------------------

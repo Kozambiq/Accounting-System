@@ -17,9 +17,13 @@ public class AppWindow extends JFrame {
     public static final String CARD_JOURNAL = "journal";
     public static final String CARD_LEDGER = "ledger";
     public static final String CARD_TRIAL_BALANCE = "trialBalance";
+    public static final String CARD_FINANCIAL_REPORTS = "financialReports";
 
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
+    private final ledger ledgerFrame;
+    private final trialBalance trialBalanceFrame;
+    private final financialReports financialReportsFrame;
 
     public AppWindow() {
         setTitle("ACCOUNTING SYSTEM");
@@ -43,18 +47,26 @@ public class AppWindow extends JFrame {
         JPanel journalView = (JPanel) journalFrame.getContentPane();
 
         // Ledger view card
-        ledger ledgerFrame = new ledger();
+        ledgerFrame = new ledger();
         JPanel ledgerView = (JPanel) ledgerFrame.getContentPane();
 
-        // Trial Balance view card
-        trialBalance trialBalanceFrame = new trialBalance();
+        // Trial Balance view card (needs reference to Ledger for data)
+        trialBalanceFrame = new trialBalance(ledgerFrame);
         JPanel trialBalanceView = (JPanel) trialBalanceFrame.getContentPane();
+
+        // Financial Reports view card (Income Statement, Cash Flow, Balance Sheet)
+        financialReportsFrame = new financialReports(ledgerFrame);
+        JPanel financialReportsView = (JPanel) financialReportsFrame.getContentPane();
+
+        // When Ledger mini cards change, refresh Trial Balance table if it was generated
+        ledgerFrame.setOnLedgerChange(() -> trialBalanceFrame.refreshTrialBalanceFromLedger());
 
         cardPanel.add(dashboardView, CARD_DASHBOARD);
         cardPanel.add(coaView, CARD_COA);
         cardPanel.add(journalView, CARD_JOURNAL);
         cardPanel.add(ledgerView, CARD_LEDGER);
         cardPanel.add(trialBalanceView, CARD_TRIAL_BALANCE);
+        cardPanel.add(financialReportsView, CARD_FINANCIAL_REPORTS);
 
         setContentPane(cardPanel);
         showDashboard();
@@ -78,6 +90,14 @@ public class AppWindow extends JFrame {
 
     public void showTrialBalance() {
         cardLayout.show(cardPanel, CARD_TRIAL_BALANCE);
+    }
+
+    public void showFinancialReports() {
+        cardLayout.show(cardPanel, CARD_FINANCIAL_REPORTS);
+    }
+
+    public ledger getLedgerFrame() {
+        return ledgerFrame;
     }
 }
 

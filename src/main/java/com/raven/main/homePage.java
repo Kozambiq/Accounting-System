@@ -168,6 +168,8 @@ public class homePage extends JFrame {
                     windowManager.openLedger(window);
                 } else if ("Trial Balance".equals(text)) {
                     windowManager.openTrialBalance(window);
+                } else if ("Financial Reports".equals(text)) {
+                    windowManager.openFinancialReports(window);
                 } else {
                     System.out.println("Clicked: " + text);
                 }

@@ -91,6 +91,16 @@ public class windowManager extends JFrame {
         }
     }
 
+    /**
+     * Helper used by other top-level pages to transition to the Financial Reports
+     * screen while preserving the current session.
+     */
+    public static void openFinancialReports(Window current) {
+        if (current instanceof AppWindow) {
+            ((AppWindow) current).showFinancialReports();
+        }
+    }
+
     public static void main(String[] args) {
         // Ensure database schema is present before any UI or queries run.
         DatabaseInitializer.initialize();

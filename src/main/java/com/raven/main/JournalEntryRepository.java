@@ -30,11 +30,13 @@ public class JournalEntryRepository {
 
     public static class JournalEntry {
         public final int id;
+        public final String entryName;
         public final String createdAt;
         public final List<JournalLine> lines;
 
-        public JournalEntry(int id, String createdAt, List<JournalLine> lines) {
+        public JournalEntry(int id, String entryName, String createdAt, List<JournalLine> lines) {
             this.id = id;
+            this.entryName = entryName != null ? entryName : "";
             this.createdAt = createdAt;
             this.lines = lines;
         }
@@ -43,9 +45,11 @@ public class JournalEntryRepository {
     /**
      * Save a journal entry header and its lines for the current user.
      *
+     * @param entryName display name for the entry (will be stored in Title Case)
+     * @param lines     the journal lines
      * @return the generated header id
      */
-    public int saveJournalEntry(List<JournalLine> lines) throws SQLException {
+    public int saveJournalEntry(String entryName, List<JournalLine> lines) throws SQLException {
         Integer userId = Session.getUserId();
         if (userId == null) {
             throw new IllegalStateException("No logged-in user in Session.");
@@ -53,6 +57,9 @@ public class JournalEntryRepository {
         if (lines == null || lines.isEmpty()) {
             throw new IllegalArgumentException("Journal entry must have at least one line.");
         }
+
+        String entryNameTitleCase = entryName != null && !entryName.isBlank()
+                ? ChartOfAccountsRepository.toTitleCase(entryName.trim()) : "";
 
         LocalDateTime now = LocalDateTime.now(ZoneId.systemDefault());
         DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -63,12 +70,13 @@ public class JournalEntryRepository {
             conn.setAutoCommit(false);
             try {
                 String insertHeader = """
-                        INSERT INTO journal_entry_headers (user_id, created_at)
-                        VALUES (?, ?)
+                        INSERT INTO journal_entry_headers (user_id, entry_name, created_at)
+                        VALUES (?, ?, ?)
                         """;
                 try (PreparedStatement ps = conn.prepareStatement(insertHeader)) {
                     ps.setInt(1, userId);
-                    ps.setString(2, createdAt);
+                    ps.setString(2, entryNameTitleCase);
+                    ps.setString(3, createdAt);
                     ps.executeUpdate();
                 }
 
@@ -120,7 +128,7 @@ public class JournalEntryRepository {
         List<JournalEntry> result = new ArrayList<>();
 
         String headerSql = """
-                SELECT id, created_at
+                SELECT id, entry_name, created_at
                   FROM journal_entry_headers
                  WHERE user_id = ?
                  ORDER BY id DESC
@@ -132,6 +140,7 @@ public class JournalEntryRepository {
             try (ResultSet rsHeader = psHeader.executeQuery()) {
                 while (rsHeader.next()) {
                     int headerId = rsHeader.getInt("id");
+                    String entryName = rsHeader.getString("entry_name");
                     String createdAt = rsHeader.getString("created_at");
                     List<JournalLine> lines = new ArrayList<>();
 
@@ -153,12 +162,135 @@ public class JournalEntryRepository {
                         }
                     }
 
-                    result.add(new JournalEntry(headerId, createdAt, lines));
+                    result.add(new JournalEntry(headerId, entryName, createdAt, lines));
                 }
             }
         }
 
         return result;
+    }
+
+    /**
+     * Load a single journal entry by header id. Returns null if not found or
+     * the entry does not belong to the current user.
+     */
+    public JournalEntry loadById(int headerId) throws SQLException {
+        Integer userId = Session.getUserId();
+        if (userId == null) return null;
+
+        String headerSql = """
+                SELECT id, entry_name, created_at
+                  FROM journal_entry_headers
+                 WHERE id = ? AND user_id = ?
+                """;
+        try (Connection conn = DBConnection.connect();
+             PreparedStatement ps = conn.prepareStatement(headerSql)) {
+            ps.setInt(1, headerId);
+            ps.setInt(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (!rs.next()) return null;
+                String entryName = rs.getString("entry_name");
+                String createdAt = rs.getString("created_at");
+                List<JournalLine> lines = new ArrayList<>();
+                String lineSql = """
+                        SELECT account_name, debit, credit
+                          FROM journal_entry_lines
+                         WHERE header_id = ?
+                         ORDER BY id ASC
+                        """;
+                try (PreparedStatement psLine = conn.prepareStatement(lineSql)) {
+                    psLine.setInt(1, headerId);
+                    try (ResultSet rsLine = psLine.executeQuery()) {
+                        while (rsLine.next()) {
+                            lines.add(new JournalLine(
+                                    rsLine.getString("account_name"),
+                                    rsLine.getDouble("debit"),
+                                    rsLine.getDouble("credit")));
+                        }
+                    }
+                }
+                return new JournalEntry(headerId, entryName, createdAt, lines);
+            }
+        }
+    }
+
+    /**
+     * Update journal entry header (entry_name) and lines for the given header. The header must belong to the current user.
+     * @param entryName display name (will be stored in Title Case); null/blank uses existing value
+     */
+    public void updateJournalEntry(int headerId, String entryName, List<JournalLine> lines) throws SQLException {
+        Integer userId = Session.getUserId();
+        if (userId == null) throw new IllegalStateException("No logged-in user.");
+        if (lines == null || lines.isEmpty()) throw new IllegalArgumentException("At least one line required.");
+
+        String entryNameTitleCase = entryName != null && !entryName.isBlank()
+                ? ChartOfAccountsRepository.toTitleCase(entryName.trim()) : null;
+
+        try (Connection conn = DBConnection.connect()) {
+            try (PreparedStatement check = conn.prepareStatement(
+                    "SELECT 1 FROM journal_entry_headers WHERE id = ? AND user_id = ?")) {
+                check.setInt(1, headerId);
+                check.setInt(2, userId);
+                try (ResultSet rs = check.executeQuery()) {
+                    if (!rs.next()) throw new SQLException("Journal entry not found or access denied.");
+                }
+            }
+            conn.setAutoCommit(false);
+            try {
+                if (entryNameTitleCase != null) {
+                    try (PreparedStatement upd = conn.prepareStatement(
+                            "UPDATE journal_entry_headers SET entry_name = ? WHERE id = ? AND user_id = ?")) {
+                        upd.setString(1, entryNameTitleCase);
+                        upd.setInt(2, headerId);
+                        upd.setInt(3, userId);
+                        upd.executeUpdate();
+                    }
+                }
+                try (PreparedStatement del = conn.prepareStatement("DELETE FROM journal_entry_lines WHERE header_id = ?")) {
+                    del.setInt(1, headerId);
+                    del.executeUpdate();
+                }
+                String insertLine = """
+                        INSERT INTO journal_entry_lines (header_id, account_name, debit, credit)
+                        VALUES (?, ?, ?, ?)
+                        """;
+                try (PreparedStatement ps = conn.prepareStatement(insertLine)) {
+                    for (JournalLine line : lines) {
+                        ps.setInt(1, headerId);
+                        ps.setString(2, line.accountName);
+                        ps.setDouble(3, line.debit);
+                        ps.setDouble(4, line.credit);
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                }
+                conn.commit();
+            } catch (SQLException e) {
+                conn.rollback();
+                throw e;
+            } finally {
+                conn.setAutoCommit(true);
+            }
+        }
+    }
+
+    /**
+     * Delete a journal entry (header and all lines). Only allowed if the header belongs to the current user.
+     */
+    public void deleteJournalEntry(int headerId) throws SQLException {
+        Integer userId = Session.getUserId();
+        if (userId == null) throw new IllegalStateException("No logged-in user.");
+
+        try (Connection conn = DBConnection.connect()) {
+            try (PreparedStatement ps = conn.prepareStatement(
+                    "DELETE FROM journal_entry_headers WHERE id = ? AND user_id = ?")) {
+                ps.setInt(1, headerId);
+                ps.setInt(2, userId);
+                int n = ps.executeUpdate();
+                if (n == 0) throw new SQLException("Journal entry not found or access denied.");
+            }
+        }
+        // Lines are deleted by FK CASCADE
     }
 }
 

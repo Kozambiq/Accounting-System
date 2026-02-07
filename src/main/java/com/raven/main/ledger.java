@@ -34,6 +34,15 @@ public class ledger extends JFrame {
     private java.util.Map<Integer, RoundedCardPanel> accountLedgerCards = new java.util.HashMap<>();
     private java.util.Map<Integer, String> accountDisplayNames = new java.util.HashMap<>();
     private java.util.Map<Integer, String> accountTypes = new java.util.HashMap<>();
+    /** Balance per account for Trial Balance generation (from displayed mini cards). */
+    private java.util.Map<Integer, Double> accountBalances = new java.util.HashMap<>();
+
+    /** Called when ledger cards are added or deleted so Trial Balance can refresh. */
+    private Runnable onLedgerChangeCallback;
+
+    public void setOnLedgerChange(Runnable r) {
+        this.onLedgerChangeCallback = r;
+    }
 
     public ledger() {
         setTitle("ACCOUNTING SYSTEM - Ledger");
@@ -248,6 +257,8 @@ public class ledger extends JFrame {
                         appWindow.showLedger();
                     } else if ("Trial Balance".equals(text)) {
                         appWindow.showTrialBalance();
+                    } else if ("Financial Reports".equals(text)) {
+                        appWindow.showFinancialReports();
                     } else {
                         System.out.println("Clicked: " + text);
                     }
@@ -396,6 +407,7 @@ public class ledger extends JFrame {
             
             // Refresh all existing ledgers to reflect real-time updates
             refreshAllLedgers();
+            if (onLedgerChangeCallback != null) onLedgerChangeCallback.run();
         });
 
         cancelBtn.addActionListener(e -> dialog.dispose());
@@ -419,6 +431,7 @@ public class ledger extends JFrame {
             accountLedgerCards.clear();
             accountDisplayNames.clear();
             accountTypes.clear();
+            accountBalances.clear();
             generatedAccountIds.clear();
         }
 
@@ -539,6 +552,9 @@ public class ledger extends JFrame {
         RoundedCardPanel miniCard = accountLedgerCards.get(accountId);
         boolean isNewCard = (miniCard == null);
         
+        // Store balance for Trial Balance generation
+        accountBalances.put(accountId, balance);
+
         // Format balance for display
         String balanceText = formatBalance(balance);
         
@@ -556,22 +572,8 @@ public class ledger extends JFrame {
             accountLedgerCards.put(accountId, miniCard);
             accountDisplayNames.put(accountId, displayAccountName);
         } else {
-            // Update existing card: remove old title and table, replace with updated ones
-            Component[] components = miniCard.getComponents();
-            for (Component comp : components) {
-                if (comp instanceof JPanel && comp.getParent() == miniCard) {
-                    // Check if it's the title panel (has BorderLayout.NORTH constraint)
-                    BorderLayout layout = (BorderLayout) miniCard.getLayout();
-                    if (comp == layout.getLayoutComponent(BorderLayout.NORTH)) {
-                        miniCard.remove(comp);
-                    }
-                }
-                if (comp instanceof JScrollPane) {
-                    miniCard.remove(comp);
-                }
-            }
-            
-            // Update title panel with new balance
+            // Update existing card: remove old content and re-add
+            miniCard.removeAll();
             JPanel titlePanel = createTitlePanel(displayAccountName, balanceText);
             miniCard.add(titlePanel, BorderLayout.NORTH);
         }
@@ -582,6 +584,17 @@ public class ledger extends JFrame {
         JScrollPane scroll = new JScrollPane(table);
         miniCard.add(scroll, BorderLayout.CENTER);
 
+        // Delete button for this ledger mini card
+        JPanel buttonRow = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        buttonRow.setOpaque(false);
+        RoundedButton deleteBtn = new RoundedButton("Delete");
+        deleteBtn.setBackground(Color.RED);
+        deleteBtn.setForeground(Color.WHITE);
+        final RoundedCardPanel cardForDelete = miniCard;
+        deleteBtn.addActionListener(e -> deleteLedgerCard(accountId, cardForDelete));
+        buttonRow.add(deleteBtn);
+        miniCard.add(buttonRow, BorderLayout.SOUTH);
+
         if (isNewCard) {
             ledgerListPanel.add(miniCard);
         }
@@ -590,6 +603,67 @@ public class ledger extends JFrame {
         ledgerListPanel.repaint();
     }
     
+    /**
+     * Delete a ledger mini card. Shows confirmation, highlights briefly, then removes.
+     */
+    private void deleteLedgerCard(int accountId, RoundedCardPanel miniCard) {
+        int choice = JOptionPane.showConfirmDialog(this,
+                "Are you sure you want to delete this ledger?",
+                "Delete Ledger",
+                JOptionPane.YES_NO_OPTION,
+                JOptionPane.WARNING_MESSAGE);
+        if (choice != JOptionPane.YES_OPTION) return;
+
+        // Brief visual highlight before removal
+        miniCard.setHighlightColor(new Color(0xFFCDD2));
+        miniCard.repaint();
+        Timer timer = new Timer(300, ev -> {
+            ledgerListPanel.remove(miniCard);
+            accountLedgerCards.remove(accountId);
+            accountDisplayNames.remove(accountId);
+            accountTypes.remove(accountId);
+            accountBalances.remove(accountId);
+            generatedAccountIds.remove(accountId);
+            ledgerListPanel.revalidate();
+            ledgerListPanel.repaint();
+            if (onLedgerChangeCallback != null) onLedgerChangeCallback.run();
+        });
+        timer.setRepeats(false);
+        timer.start();
+    }
+
+    /**
+     * Returns ledger data for Trial Balance: list of (accountName, accountType, balance).
+     * Only includes accounts that are currently displayed as mini cards.
+     * Balance sign: for Asset/Expense positive = debit; for Liability/Equity/Revenue positive = credit.
+     */
+    public java.util.List<LedgerAccountBalance> getLedgerDataForTrialBalance() {
+        java.util.List<LedgerAccountBalance> result = new java.util.ArrayList<>();
+        for (java.util.Map.Entry<Integer, Double> e : accountBalances.entrySet()) {
+            int accountId = e.getKey();
+            double balance = e.getValue();
+            String displayName = accountDisplayNames.get(accountId);
+            String type = accountTypes.get(accountId);
+            if (displayName != null) {
+                result.add(new LedgerAccountBalance(displayName, type != null ? type : "", balance));
+            }
+        }
+        return result;
+    }
+
+    /** Data class for Trial Balance generation from Ledger. */
+    public static class LedgerAccountBalance {
+        public final String accountName;
+        public final String accountType;
+        public final double balance;
+
+        public LedgerAccountBalance(String accountName, String accountType, double balance) {
+            this.accountName = accountName;
+            this.accountType = accountType != null ? accountType : "";
+            this.balance = balance;
+        }
+    }
+
     /**
      * Refresh all existing ledgers to reflect real-time database changes.
      */
@@ -709,17 +783,22 @@ public class ledger extends JFrame {
     // Rounded card panel used for parent/mini cards
     private static class RoundedCardPanel extends JPanel {
         private final Color bgColor;
+        private Color highlightColor;
 
         public RoundedCardPanel(Color bgColor) {
             this.bgColor = bgColor;
             setOpaque(false);
         }
 
+        public void setHighlightColor(Color c) {
+            this.highlightColor = c;
+        }
+
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
             g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-            g2.setColor(bgColor);
+            g2.setColor(highlightColor != null ? highlightColor : bgColor);
             int arc = 18;
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
             g2.dispose();

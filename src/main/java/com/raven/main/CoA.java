@@ -213,6 +213,8 @@ public class CoA extends JFrame {
                         appWindow.showLedger();
                     } else if ("Trial Balance".equals(text)) {
                         appWindow.showTrialBalance();
+                    } else if ("Financial Reports".equals(text)) {
+                        appWindow.showFinancialReports();
                     } else {
                         System.out.println("Clicked: " + text);
                     }
