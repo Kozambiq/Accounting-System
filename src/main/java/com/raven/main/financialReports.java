@@ -29,6 +29,8 @@ public class financialReports extends JFrame {
     private JPanel reportContainer;
     private RoundedCardPanel reportCard;
     private LocalDate balanceSheetEndDate = null;
+    /** For notification deduplication. */
+    private String lastFinancialReportHash;
 
     public financialReports(ledger ledgerFrame) {
         this.ledgerFrame = ledgerFrame;
@@ -86,6 +88,8 @@ public class financialReports extends JFrame {
 
         side.add(logoPanel, BorderLayout.NORTH);
         side.add(menuPanel, BorderLayout.CENTER);
+        side.add(windowManager.createLogoutButtonPanel(), BorderLayout.SOUTH);
+
         return side;
     }
 
@@ -307,6 +311,10 @@ public class financialReports extends JFrame {
         reportContainer.add(content, BorderLayout.CENTER);
         reportContainer.revalidate();
         reportContainer.repaint();
+
+        ActivityLogRepository.log("generate", "financial_report", "Income Statement generated");
+        String hash = "Income:" + totalRevenue + "," + totalExpense + "," + netIncome;
+        notifyFinancialReport(hash);
     }
 
     /** Activity categories for Cash Flow Statement. */
@@ -510,6 +518,10 @@ public class financialReports extends JFrame {
         reportContainer.add(content, BorderLayout.CENTER);
         reportContainer.revalidate();
         reportContainer.repaint();
+
+        ActivityLogRepository.log("generate", "financial_report", "Cash Flow Statement generated");
+        String hash = "CashFlow:" + opNet + "," + invNet + "," + finNet + "," + totalNetCashFlow;
+        notifyFinancialReport(hash);
     }
 
     /** Category label with inflow/outflow so amount column stays positive-only. */
@@ -636,6 +648,23 @@ public class financialReports extends JFrame {
         reportContainer.add(content, BorderLayout.CENTER);
         reportContainer.revalidate();
         reportContainer.repaint();
+
+        ActivityLogRepository.log("generate", "financial_report", "Balance Sheet generated");
+        String hash = "BalanceSheet:" + totalAssets + "," + totalLiabilities + "," + totalEquity;
+        notifyFinancialReport(hash);
+    }
+
+    private void notifyFinancialReport(String currentHash) {
+        Integer userId = Session.getUserId();
+        if (userId == null) return;
+        if (lastFinancialReportHash != null && !lastFinancialReportHash.equals(currentHash)) {
+            NotificationHolder.add(userId, "financial_report", "Financial Report value changed");
+            NotificationRepository.insert(userId, "Financial Report value changed");
+        } else {
+            NotificationHolder.add(userId, "financial_report", "Financial Report generated");
+            NotificationRepository.insert(userId, "Financial Report generated");
+        }
+        lastFinancialReportHash = currentHash;
     }
 
     private static class BalanceSheetItem {

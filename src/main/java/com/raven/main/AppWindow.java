@@ -21,6 +21,7 @@ public class AppWindow extends JFrame {
 
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
+    private final homePage dashboardFrame;
     private final ledger ledgerFrame;
     private final trialBalance trialBalanceFrame;
     private final financialReports financialReportsFrame;
@@ -35,7 +36,7 @@ public class AppWindow extends JFrame {
         cardPanel = new JPanel(cardLayout);
 
         // Dashboard view card
-        homePage dashboardFrame = new homePage();
+        dashboardFrame = new homePage();
         JPanel dashboardView = dashboardFrame.createRootPanel();
 
         // Chart of Accounts view card
@@ -58,8 +59,11 @@ public class AppWindow extends JFrame {
         financialReportsFrame = new financialReports(ledgerFrame);
         JPanel financialReportsView = (JPanel) financialReportsFrame.getContentPane();
 
-        // When Ledger mini cards change, refresh Trial Balance table if it was generated
-        ledgerFrame.setOnLedgerChange(() -> trialBalanceFrame.refreshTrialBalanceFromLedger());
+        // When Ledger mini cards change, refresh Trial Balance and dashboard metrics/activity
+        ledgerFrame.setOnLedgerChange(() -> {
+            trialBalanceFrame.refreshTrialBalanceFromLedger();
+            dashboardFrame.refreshDashboard();
+        });
 
         cardPanel.add(dashboardView, CARD_DASHBOARD);
         cardPanel.add(coaView, CARD_COA);
@@ -74,6 +78,7 @@ public class AppWindow extends JFrame {
 
     public void showDashboard() {
         cardLayout.show(cardPanel, CARD_DASHBOARD);
+        dashboardFrame.refreshDashboard();
     }
 
     public void showChartOfAccounts() {

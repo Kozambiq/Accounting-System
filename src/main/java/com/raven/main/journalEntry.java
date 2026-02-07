@@ -99,6 +99,7 @@ public class journalEntry extends JFrame {
 
         side.add(logoPanel, BorderLayout.NORTH);
         side.add(menuPanel, BorderLayout.CENTER);
+        side.add(windowManager.createLogoutButtonPanel(), BorderLayout.SOUTH);
 
         return side;
     }
@@ -530,6 +531,7 @@ public class journalEntry extends JFrame {
 
             try {
                 journalRepo.saveJournalEntry(currentEntryName, currentSheetLines);
+                ActivityLogRepository.log("add", "journal_entry", "Journal Entry added");
                 reloadJournalCards();
                 dialog.dispose();
             } catch (Exception ex) {
@@ -1015,6 +1017,7 @@ public class journalEntry extends JFrame {
             }
             try {
                 journalRepo.updateJournalEntry(headerId, editEntryName.trim(), lines);
+                ActivityLogRepository.log("edit", "journal_entry", "Journal Entry edited");
                 reloadJournalCards();
                 dialog.dispose();
             } catch (Exception ex) {
@@ -1039,6 +1042,7 @@ public class journalEntry extends JFrame {
         if (choice != JOptionPane.YES_OPTION) return;
         try {
             journalRepo.deleteJournalEntry(headerId);
+            ActivityLogRepository.log("delete", "journal_entry", "Journal Entry deleted");
             reloadJournalCards();
         } catch (Exception ex) {
             ex.printStackTrace();

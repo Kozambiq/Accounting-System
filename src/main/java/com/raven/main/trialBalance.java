@@ -28,6 +28,9 @@ public class trialBalance extends JFrame {
     private JLabel errorLabel;
     /** True after user has generated at least once; used to auto-refresh when Ledger changes. */
     private boolean trialBalanceGenerated;
+    /** For notification deduplication: last totals hash and balanced state. */
+    private String lastTrialBalanceHash;
+    private Boolean lastTrialBalanceBalanced;
 
     public trialBalance(ledger ledgerFrame) {
         this.ledgerFrame = ledgerFrame;
@@ -89,6 +92,7 @@ public class trialBalance extends JFrame {
 
         side.add(logoPanel, BorderLayout.NORTH);
         side.add(menuPanel, BorderLayout.CENTER);
+        side.add(windowManager.createLogoutButtonPanel(), BorderLayout.SOUTH);
 
         return side;
     }
@@ -268,6 +272,7 @@ public class trialBalance extends JFrame {
         errorLabel.setText("");
         errorLabel.setVisible(false);
         displayTrialBalanceFromLedger(ledgerData);
+        ActivityLogRepository.log("generate", "trial_balance", "Trial Balance generated");
     }
 
     private void displayTrialBalanceFromLedger(java.util.List<ledger.LedgerAccountBalance> ledgerData) {
@@ -325,6 +330,22 @@ public class trialBalance extends JFrame {
         trialBalanceTable.setFillsViewportHeight(true);
 
         final boolean totalsMismatch = Math.abs(totalDebit - totalCredit) > 0.01;
+        final boolean balanced = !totalsMismatch;
+        String currentHash = totalDebit + "," + totalCredit;
+        Integer userId = Session.getUserId();
+        if (userId != null) {
+            if (lastTrialBalanceHash != null && !lastTrialBalanceHash.equals(currentHash)) {
+                NotificationHolder.add(userId, "trial_balance", "Trial Balance value changed");
+                NotificationRepository.insert(userId, "Trial Balance value changed");
+            }
+            if (lastTrialBalanceBalanced == null || !lastTrialBalanceBalanced.equals(balanced)) {
+                String msg = balanced ? "Trial Balance is balanced" : "Trial Balance is unbalanced";
+                NotificationHolder.add(userId, "trial_balance_balance", msg);
+                NotificationRepository.insert(userId, msg);
+            }
+        }
+        lastTrialBalanceHash = currentHash;
+        lastTrialBalanceBalanced = balanced;
 
         // Right-align Debit and Credit columns; optionally highlight totals row when unbalanced
         TableCellRenderer rightAlignRenderer = new DefaultTableCellRenderer() {

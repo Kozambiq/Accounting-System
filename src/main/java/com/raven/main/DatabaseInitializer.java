@@ -138,6 +138,30 @@ public final class DatabaseInitializer {
                     );
                     """);
 
+            // --- ACTIVITY LOG (user-specific recent actions for dashboard) ---
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS activity_log (
+                        id            INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id       INTEGER NOT NULL,
+                        activity_type TEXT    NOT NULL,
+                        entity_type   TEXT    NOT NULL,
+                        description   TEXT,
+                        created_at    TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    );
+                    """);
+
+            // --- NOTIFICATIONS (persisted, visible after re-login) ---
+            stmt.execute("""
+                    CREATE TABLE IF NOT EXISTS notifications (
+                        id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                        user_id    INTEGER NOT NULL,
+                        message    TEXT    NOT NULL,
+                        created_at TEXT    NOT NULL DEFAULT (datetime('now','localtime')),
+                        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+                    );
+                    """);
+
         } catch (SQLException e) {
             // For a desktop app, logging to stderr is acceptable.
             e.printStackTrace();

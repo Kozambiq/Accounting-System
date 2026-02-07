@@ -140,6 +140,7 @@ public class CoA extends JFrame {
 
         side.add(logoPanel, BorderLayout.NORTH);
         side.add(menuPanel, BorderLayout.CENTER);
+        side.add(windowManager.createLogoutButtonPanel(), BorderLayout.SOUTH);
 
         return side;
     }
@@ -582,6 +583,7 @@ public class CoA extends JFrame {
                     ps.setInt(1, accountId);
                     ps.setInt(2, userId);
                     ps.executeUpdate();
+                    ActivityLogRepository.log("remove", "chart_of_accounts", "Chart of Accounts account removed");
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                 }
@@ -818,7 +820,7 @@ public class CoA extends JFrame {
                 }
 
                 repository.insertAccountForCurrentUser(normalizedName, accountType);
-                // Refresh the main table so the new entry appears immediately
+                ActivityLogRepository.log("add", "chart_of_accounts", "Account " + ChartOfAccountsRepository.toTitleCase(normalizedName) + " added");
                 reloadAccountsTable();
 
             } catch (IllegalStateException ex) {

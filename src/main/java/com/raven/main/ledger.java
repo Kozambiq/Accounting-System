@@ -103,6 +103,7 @@ public class ledger extends JFrame {
 
         side.add(logoPanel, BorderLayout.NORTH);
         side.add(menuPanel, BorderLayout.CENTER);
+        side.add(windowManager.createLogoutButtonPanel(), BorderLayout.SOUTH);
 
         return side;
     }
@@ -405,7 +406,9 @@ public class ledger extends JFrame {
                 loadLedgerForAccount(newAccountIds.get(i), newAccountNames.get(i), false);
             }
             
-            // Refresh all existing ledgers to reflect real-time updates
+            if (!newAccountIds.isEmpty()) {
+                ActivityLogRepository.log("generate", "ledger", "Ledger generated");
+            }
             refreshAllLedgers();
             if (onLedgerChangeCallback != null) onLedgerChangeCallback.run();
         });
@@ -624,6 +627,7 @@ public class ledger extends JFrame {
             accountTypes.remove(accountId);
             accountBalances.remove(accountId);
             generatedAccountIds.remove(accountId);
+            ActivityLogRepository.log("remove", "ledger", "Ledger card removed");
             ledgerListPanel.revalidate();
             ledgerListPanel.repaint();
             if (onLedgerChangeCallback != null) onLedgerChangeCallback.run();

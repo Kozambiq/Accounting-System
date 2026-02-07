@@ -2,7 +2,6 @@ package com.raven.main;
 
 import javax.swing.*;
 import javax.swing.border.Border;
-import javax.swing.border.LineBorder;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
@@ -11,6 +10,7 @@ import java.io.InputStream;
 public class homePage extends JFrame {
 
     private Font workSansBold;
+    private Font workSansRegular;
 
     // First-row card dimensions (customize length/width)
     private static final int PROFILE_CARD_WIDTH = 350;
@@ -18,13 +18,29 @@ public class homePage extends JFrame {
     private static final int METRIC_CARD_WIDTH = 300;
     private static final int METRIC_CARD_HEIGHT = 140;
 
+    private JLabel revenueAmountLabel;
+    private JLabel liabilitiesAmountLabel;
+    private JLabel equityAmountLabel;
+    private JLabel profileValueLabel;
+    private JPanel notificationListPanel;
+    private JPanel recentActivityListPanel;
+
     public homePage() {
         setTitle("ACCOUNTING SYSTEM - Dashboard");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
         setMinimumSize(new Dimension(1200, 700));
-
+        loadWorkSansFonts();
         setContentPane(createRootPanel());
+    }
+
+    private void loadWorkSansFonts() {
+        try (InputStream boldStream = getClass().getResourceAsStream("/fonts/Work_Sans/static/WorkSans-Bold.ttf")) {
+            if (boldStream != null) workSansBold = Font.createFont(Font.TRUETYPE_FONT, boldStream);
+        } catch (Exception ignored) { }
+        try (InputStream regStream = getClass().getResourceAsStream("/fonts/Work_Sans/static/WorkSans-Regular.ttf")) {
+            if (regStream != null) workSansRegular = Font.createFont(Font.TRUETYPE_FONT, regStream);
+        } catch (Exception ignored) { }
     }
 
     /**
@@ -86,6 +102,7 @@ public class homePage extends JFrame {
 
         side.add(logoPanel, BorderLayout.NORTH);
         side.add(menuPanel, BorderLayout.CENTER);
+        side.add(windowManager.createLogoutButtonPanel(), BorderLayout.SOUTH);
 
         return side;
     }
@@ -190,20 +207,16 @@ public class homePage extends JFrame {
         topBar.setOpaque(false);
 
         JLabel title = new JLabel("DashBoard");
-        title.setFont(new Font("SansSerif", Font.BOLD, 26));
+        title.setFont(getWorkSansBold(26f));
         title.setForeground(new Color(0x2e6417));
 
-        // Show the currently logged-in user's email in the user chip.
         String email = Session.getCurrentUserEmail();
-        if (email == null || email.isBlank()) {
-            email = "Unknown Email";
-        }
-        JButton userChip = new JButton(email);
-        userChip.setFocusPainted(false);
+        if (email == null || email.isBlank()) email = "Unknown Email";
+        RoundedUserChip userChip = new RoundedUserChip(email);
         userChip.setBackground(new Color(0x39A845));
         userChip.setForeground(Color.WHITE);
-        userChip.setFont(new Font("SansSerif", Font.BOLD, 14));
-        userChip.setBorder(BorderFactory.createEmptyBorder(8, 16, 8, 16));
+        userChip.setFont(getWorkSansBold(16f));
+        userChip.setBorder(BorderFactory.createEmptyBorder(12, 24, 12, 24));
 
         topBar.add(title, BorderLayout.WEST);
         topBar.add(userChip, BorderLayout.EAST);
@@ -245,19 +258,22 @@ public class homePage extends JFrame {
         profileCard.setPreferredSize(new Dimension(PROFILE_CARD_WIDTH, PROFILE_CARD_HEIGHT));
         row.add(profileCard, gbc);
 
-        // Metric cards
+        // Metric cards (values updated by refreshDashboard())
+        revenueAmountLabel = new JLabel("₱0");
+        liabilitiesAmountLabel = new JLabel("₱0");
+        equityAmountLabel = new JLabel("₱0");
         gbc.gridheight = 1;
         gbc.insets = new Insets(0, 100, 0, 0);
         gbc.gridx = 1;
-        JPanel m1 = createMetricCard("₱100,000", "Total Assets", "+ 7.9%", new Color(0x19A64A), "/icon/asset_icon.png");
+        JPanel m1 = createMetricCard(revenueAmountLabel, "Total Revenue", "/icon/asset_icon.png");
         m1.setPreferredSize(new Dimension(METRIC_CARD_WIDTH, METRIC_CARD_HEIGHT));
         row.add(m1, gbc);
         gbc.gridx = 2;
-        JPanel m2 = createMetricCard("₱100,000", "Total Liabilities", "+ 7.9%", new Color(0xE53935), "/icon/liabilities_icon.png");
+        JPanel m2 = createMetricCard(liabilitiesAmountLabel, "Total Liabilities", "/icon/liabilities_icon.png");
         m2.setPreferredSize(new Dimension(METRIC_CARD_WIDTH, METRIC_CARD_HEIGHT));
         row.add(m2, gbc);
         gbc.gridx = 3;
-        JPanel m3 = createMetricCard("₱100,000", "Equity", "+ 7.9%", new Color(0x19A64A), "/icon/equity_icon.png");
+        JPanel m3 = createMetricCard(equityAmountLabel, "Equity", "/icon/equity_icon.png");
         m3.setPreferredSize(new Dimension(METRIC_CARD_WIDTH, METRIC_CARD_HEIGHT));
         row.add(m3, gbc);
 
@@ -285,16 +301,16 @@ public class homePage extends JFrame {
             fullName = "Unknown User";
         }
         JLabel name = new JLabel(fullName);
-        name.setFont(new Font("SansSerif", Font.BOLD, 34));
+        name.setFont(getWorkSansBold(34f));
         name.setForeground(Color.WHITE);
 
         JLabel currentValueLabel = new JLabel("Current Value");
-        currentValueLabel.setFont(new Font("SansSerif", Font.PLAIN, 18));
+        currentValueLabel.setFont(getWorkSansRegular(18f));
         currentValueLabel.setForeground(Color.WHITE);
 
-        JLabel value = new JLabel("₱100,000");
-        value.setFont(new Font("SansSerif", Font.BOLD, 25));
-        value.setForeground(Color.WHITE);
+        profileValueLabel = new JLabel("₱0");
+        profileValueLabel.setFont(getWorkSansBold(25f));
+        profileValueLabel.setForeground(Color.WHITE);
 
         JPanel textPanel = new JPanel();
         textPanel.setOpaque(false);
@@ -304,19 +320,18 @@ public class homePage extends JFrame {
         textPanel.add(name);
         textPanel.add(Box.createVerticalStrut(20));
         textPanel.add(currentValueLabel);
-        textPanel.add(value);
+        textPanel.add(profileValueLabel);
 
         card.add(textPanel, BorderLayout.CENTER);
 
         return card;
     }
 
-    private JPanel createMetricCard(String amount, String label, String changeText, Color changeColor, String iconPath) {
+    private JPanel createMetricCard(JLabel amountLabel, String title, String iconPath) {
         JPanel card = new RoundedProfileCard(new Color(0xcdc6c6));
         card.setLayout(new BorderLayout(0, 0));
         card.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
 
-        // Icon at top left
         JPanel iconPanel = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
         iconPanel.setOpaque(false);
         iconPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 8, 0));
@@ -331,45 +346,23 @@ public class homePage extends JFrame {
         }
         card.add(iconPanel, BorderLayout.NORTH);
 
-        // Badge + amount + label at bottom
         JPanel bottomContent = new JPanel();
         bottomContent.setLayout(new BoxLayout(bottomContent, BoxLayout.Y_AXIS));
         bottomContent.setOpaque(false);
-
         bottomContent.add(Box.createVerticalGlue());
 
-        JLabel change = new JLabel(changeText);
-        change.setFont(new Font("SansSerif", Font.BOLD, 15));
-        change.setForeground(Color.WHITE);
-
-        RoundedBadgePanel badge = new RoundedBadgePanel(changeColor);
-        badge.setLayout(new FlowLayout(FlowLayout.CENTER, 0, 0));
-        badge.setBorder(BorderFactory.createEmptyBorder(1, 4, 1, 4));
-        badge.add(change);
-
-        JPanel badgeWrapper = new JPanel(new FlowLayout(FlowLayout.LEADING, 0, 0));
-        badgeWrapper.setOpaque(false);
-        badgeWrapper.setAlignmentX(Component.LEFT_ALIGNMENT);
-        badgeWrapper.add(badge);
-        // Keep wrapper from taking extra vertical space so the badge touches the money text
-        badgeWrapper.setMaximumSize(new Dimension(Integer.MAX_VALUE, 24));
-
-        JLabel amountLabel = new JLabel(amount);
-        amountLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        amountLabel.setFont(getWorkSansBold(34f));
         amountLabel.setForeground(new Color(0x2F2F2F));
         amountLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JLabel descLabel = new JLabel(label);
-        descLabel.setFont(new Font("SansSerif", Font.PLAIN, 27));
+        JLabel descLabel = new JLabel(title);
+        descLabel.setFont(getWorkSansRegular(27f));
         descLabel.setForeground(new Color(0x555555));
         descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        bottomContent.add(badgeWrapper);
         bottomContent.add(amountLabel);
         bottomContent.add(descLabel);
-
         card.add(bottomContent, BorderLayout.CENTER);
-
         return card;
     }
 
@@ -399,17 +392,32 @@ public class homePage extends JFrame {
             }
         } catch (Exception ignored) { }
         JLabel header = new JLabel("Notification");
-        header.setFont(new Font("SansSerif", Font.BOLD, 18));
+        header.setFont(getWorkSansBold(18f));
         header.setForeground(new Color(0x2F2F2F));
         headerRow.add(header);
+        headerRow.add(Box.createHorizontalGlue());
+        RoundedButton clearNotifBtn = new RoundedButton("Clear");
+        clearNotifBtn.setBackground(new Color(0x545454));
+        clearNotifBtn.setForeground(Color.WHITE);
+        clearNotifBtn.setFont(getWorkSansBold(12f));
+        clearNotifBtn.addActionListener(e -> {
+            Integer uid = Session.getUserId();
+            if (uid != null) NotificationRepository.clearAll(uid);
+            if (notificationListPanel != null) refreshDashboard();
+        });
+        headerRow.add(clearNotifBtn);
 
-        JPanel list = new JPanel();
-        list.setOpaque(false);
-        list.setLayout(new BoxLayout(list, BoxLayout.Y_AXIS));
-        // Content will be added from backend later
+        notificationListPanel = new JPanel();
+        notificationListPanel.setOpaque(false);
+        notificationListPanel.setLayout(new BoxLayout(notificationListPanel, BoxLayout.Y_AXIS));
+        notificationListPanel.setMinimumSize(new Dimension(0, 200));
+        JScrollPane notifScroll = new JScrollPane(notificationListPanel);
+        notifScroll.setBorder(BorderFactory.createEmptyBorder());
+        notifScroll.getViewport().setOpaque(false);
+        notifScroll.setOpaque(false);
 
         panel.add(headerRow, BorderLayout.NORTH);
-        panel.add(list, BorderLayout.CENTER);
+        panel.add(notifScroll, BorderLayout.CENTER);
 
         return panel;
     }
@@ -439,19 +447,123 @@ public class homePage extends JFrame {
             }
         } catch (Exception ignored) { }
         JLabel header = new JLabel("Recent Activity");
-        header.setFont(new Font("SansSerif", Font.BOLD, 18));
+        header.setFont(getWorkSansBold(18f));
         header.setForeground(new Color(0x2F2F2F));
         headerRow.add(header);
 
-        JPanel content = new JPanel();
-        content.setOpaque(false);
-        content.setLayout(new BoxLayout(content, BoxLayout.Y_AXIS));
-        // Content will be added from backend later
+        recentActivityListPanel = new JPanel();
+        recentActivityListPanel.setOpaque(false);
+        recentActivityListPanel.setLayout(new BoxLayout(recentActivityListPanel, BoxLayout.Y_AXIS));
+        recentActivityListPanel.setMinimumSize(new Dimension(0, 200));
+        JScrollPane activityScroll = new JScrollPane(recentActivityListPanel);
+        activityScroll.setBorder(BorderFactory.createEmptyBorder());
+        activityScroll.getViewport().setOpaque(false);
+        activityScroll.setOpaque(false);
 
         panel.add(headerRow, BorderLayout.NORTH);
-        panel.add(content, BorderLayout.CENTER);
+        panel.add(activityScroll, BorderLayout.CENTER);
 
         return panel;
+    }
+
+    private static final int NOTIFICATION_BOX_MIN_HEIGHT = 56;
+    private static final int ACTIVITY_BOX_MIN_HEIGHT = 56;
+    private static final int BOX_VERTICAL_GAP = 5;
+    private static final int BOX_PADDING_TOP_BOTTOM = 10;
+    private static final int BOX_PADDING_LEFT_RIGHT = 12;
+
+    public void refreshDashboard() {
+        double[] totals = DashboardMetrics.computeTotals();
+        double totalRevenue = DashboardMetrics.computeTotalRevenue();
+        if (revenueAmountLabel != null) revenueAmountLabel.setText("₱" + formatMetric(totalRevenue));
+        if (liabilitiesAmountLabel != null) liabilitiesAmountLabel.setText("₱" + formatMetric(totals[1]));
+        if (equityAmountLabel != null) equityAmountLabel.setText("₱" + formatMetric(totals[2]));
+        if (profileValueLabel != null) profileValueLabel.setText("₱" + formatMetric(totals[0]));
+
+        if (notificationListPanel != null) {
+            notificationListPanel.removeAll();
+            Integer userId = Session.getUserId();
+            if (userId != null) {
+                for (NotificationRepository.NotificationEntry n : NotificationRepository.getAll(userId)) {
+                    JPanel box = new RoundedColorBox(new Color(0x545454));
+                    box.setLayout(new BorderLayout());
+                    box.setBorder(BorderFactory.createEmptyBorder(BOX_PADDING_TOP_BOTTOM, BOX_PADDING_LEFT_RIGHT, BOX_PADDING_TOP_BOTTOM, BOX_PADDING_LEFT_RIGHT));
+                    box.setMinimumSize(new Dimension(0, NOTIFICATION_BOX_MIN_HEIGHT));
+                    box.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+                    box.setAlignmentX(Component.LEFT_ALIGNMENT);
+                    String text = n.message + " — " + formatTimeAgo(n.createdAt);
+                    JLabel lbl = new JLabel("<html><div style='width:100%'>" + escapeHtml(text) + "</div></html>");
+                    lbl.setFont(getWorkSansRegular(15f));
+                    lbl.setForeground(Color.WHITE);
+                    lbl.setVerticalAlignment(SwingConstants.TOP);
+                    box.add(lbl, BorderLayout.CENTER);
+                    notificationListPanel.add(box);
+                    notificationListPanel.add(Box.createVerticalStrut(BOX_VERTICAL_GAP));
+                }
+            }
+            notificationListPanel.revalidate();
+            notificationListPanel.repaint();
+        }
+        if (recentActivityListPanel != null) {
+            recentActivityListPanel.removeAll();
+            for (ActivityLogRepository.ActivityEntry e : ActivityLogRepository.getRecent(100_000)) {
+                boolean isDeletion = "delete".equalsIgnoreCase(e.activityType) || "remove".equalsIgnoreCase(e.activityType);
+                Color bg = isDeletion ? new Color(0xff9999) : new Color(0x99e17a);
+                JPanel box = new RoundedColorBox(bg);
+                box.setLayout(new BorderLayout());
+                box.setBorder(BorderFactory.createEmptyBorder(BOX_PADDING_TOP_BOTTOM, BOX_PADDING_LEFT_RIGHT, BOX_PADDING_TOP_BOTTOM, BOX_PADDING_LEFT_RIGHT));
+                box.setMinimumSize(new Dimension(0, ACTIVITY_BOX_MIN_HEIGHT));
+                box.setMaximumSize(new Dimension(Integer.MAX_VALUE, 400));
+                box.setAlignmentX(Component.LEFT_ALIGNMENT);
+                String text = activityDescription(e) + " — " + formatTimeAgo(e.createdAt);
+                JLabel lbl = new JLabel("<html><div style='width:100%'>" + escapeHtml(text) + "</div></html>");
+                lbl.setFont(getWorkSansRegular(15f));
+                lbl.setForeground(new Color(0x1a1a1a));
+                lbl.setVerticalAlignment(SwingConstants.TOP);
+                box.add(lbl, BorderLayout.CENTER);
+                recentActivityListPanel.add(box);
+                recentActivityListPanel.add(Box.createVerticalStrut(BOX_VERTICAL_GAP));
+            }
+            recentActivityListPanel.revalidate();
+            recentActivityListPanel.repaint();
+        }
+    }
+
+    private static String formatMetric(double v) {
+        return String.format("%,.2f", Math.abs(v));
+    }
+
+    /** Escape for use inside HTML so text doesn't break the label. */
+    private static String escapeHtml(String s) {
+        if (s == null) return "";
+        return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\n", "<br/>");
+    }
+
+    private static String formatTimeAgo(String createdAt) {
+        if (createdAt == null || createdAt.isBlank()) return "";
+        try {
+            java.time.LocalDateTime then = java.time.LocalDateTime.parse(createdAt.replace(" ", "T"),
+                    java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            long sec = java.time.Duration.between(then, java.time.LocalDateTime.now()).getSeconds();
+            if (sec < 60) return sec + " seconds ago";
+            if (sec < 3600) return (sec / 60) + " minutes ago";
+            if (sec < 86400) return (sec / 3600) + " hours ago";
+            return (sec / 86400) + " days ago";
+        } catch (Exception ignored) { return createdAt; }
+    }
+
+    private static Color activityColor(String activityType) {
+        if (activityType == null) return new Color(0x2F2F2F);
+        switch (activityType.toLowerCase()) {
+            case "add": case "generate": return new Color(0x2e7d32);
+            case "edit": return new Color(0xF9A825);
+            case "delete": case "remove": return new Color(0xC62828);
+            default: return new Color(0x2F2F2F);
+        }
+    }
+
+    private static String activityDescription(ActivityLogRepository.ActivityEntry e) {
+        return e.description != null && !e.description.isBlank() ? e.description : e.entityType + " " + e.activityType;
     }
 
     private JPanel createActivitySection(String label) {
@@ -486,11 +598,13 @@ public class homePage extends JFrame {
 
 
     private Font getWorkSansBold(float size) {
-        if (workSansBold != null) {
-            return workSansBold.deriveFont(Font.BOLD, size);
-        }
-        // Graceful fallback if the font resource is missing
+        if (workSansBold != null) return workSansBold.deriveFont(Font.BOLD, size);
         return new Font("SansSerif", Font.BOLD, (int) size);
+    }
+
+    private Font getWorkSansRegular(float size) {
+        if (workSansRegular != null) return workSansRegular.deriveFont(Font.PLAIN, size);
+        return new Font("SansSerif", Font.PLAIN, (int) size);
     }
 
     // Custom profile card panel with rounded corners
@@ -543,6 +657,66 @@ public class homePage extends JFrame {
             int arc = 18;
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
 
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    private static class RoundedUserChip extends JButton {
+        private static final int ARC = 18;
+        RoundedUserChip(String text) {
+            super(text);
+            setOpaque(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setContentAreaFilled(false);
+        }
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(getBackground());
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), ARC, ARC);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    private static class RoundedColorBox extends JPanel {
+        private final Color bgColor;
+        RoundedColorBox(Color bgColor) {
+            this.bgColor = bgColor;
+            setOpaque(false);
+        }
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            g2.setColor(bgColor);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), 12, 12);
+            g2.dispose();
+            super.paintComponent(g);
+        }
+    }
+
+    private static class RoundedButton extends JButton {
+        private static final int ARC = 12;
+        RoundedButton(String text) {
+            super(text);
+            setOpaque(false);
+            setBorderPainted(false);
+            setFocusPainted(false);
+            setContentAreaFilled(false);
+        }
+        @Override
+        protected void paintComponent(Graphics g) {
+            Graphics2D g2 = (Graphics2D) g.create();
+            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+            Color bg = getBackground();
+            if (getModel().isRollover()) bg = bg.brighter();
+            if (getModel().isPressed()) bg = bg.darker();
+            g2.setColor(bg);
+            g2.fillRoundRect(0, 0, getWidth(), getHeight(), ARC, ARC);
             g2.dispose();
             super.paintComponent(g);
         }

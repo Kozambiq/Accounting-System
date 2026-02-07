@@ -5,6 +5,52 @@ import java.awt.*;
 
 public class windowManager extends JFrame {
 
+    /** Creates a rounded Logout button panel for the left nav (SOUTH). Clears session and shows login. */
+    public static JPanel createLogoutButtonPanel() {
+        JPanel wrap = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 12));
+        wrap.setBackground(new Color(0xcdc6c6));
+        wrap.setBorder(BorderFactory.createEmptyBorder(12, 16, 20, 16));
+
+        JButton btn = new JButton("Logout") {
+            @Override
+            protected void paintComponent(Graphics g) {
+                Graphics2D g2 = (Graphics2D) g.create();
+                g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                Color bg = getBackground();
+                if (getModel().isRollover()) bg = bg.brighter();
+                if (getModel().isPressed()) bg = bg.darker();
+                g2.setColor(bg);
+                g2.fillRoundRect(0, 0, getWidth(), getHeight(), 18, 18);
+                g2.dispose();
+                super.paintComponent(g);
+            }
+        };
+        btn.setOpaque(false);
+        btn.setBorderPainted(false);
+        btn.setFocusPainted(false);
+        btn.setContentAreaFilled(false);
+        btn.setBackground(new Color(0x2e6417));
+        btn.setForeground(Color.WHITE);
+        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
+        btn.setPreferredSize(new Dimension(200, 48));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        try {
+            ImageIcon icon = new ImageIcon(windowManager.class.getResource("/icon/leave_icon.png.png"));
+            if (icon.getIconWidth() > 0) {
+                Image img = icon.getImage().getScaledInstance(24, 24, Image.SCALE_SMOOTH);
+                btn.setIcon(new ImageIcon(img));
+            }
+        } catch (Exception ignored) { }
+        btn.addActionListener(e -> {
+            Session.clear();
+            Window w = SwingUtilities.getWindowAncestor(btn);
+            if (w != null) w.dispose();
+            new windowManager().setVisible(true);
+        });
+        wrap.add(btn);
+        return wrap;
+    }
+
     private CardLayout cardLayout;
     private JPanel cardPanel;
 
