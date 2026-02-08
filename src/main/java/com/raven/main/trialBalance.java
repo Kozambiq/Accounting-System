@@ -2,7 +2,6 @@ package com.raven.main;
 
 import javax.swing.*;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.TableCellRenderer;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -325,9 +324,8 @@ public class trialBalance extends JFrame {
         // Totals row (positive values only)
         model.addRow(new Object[]{"TOTAL", formatNumber(totalDebit), formatNumber(totalCredit)});
 
-        trialBalanceTable = new JTable(model);
-        trialBalanceTable.setSelectionMode(ListSelectionModel.SINGLE_SELECTION);
-        trialBalanceTable.setFillsViewportHeight(true);
+        trialBalanceTable = StandardTableStyle.createStandardTable(model);
+        StandardTableStyle.applyStandardTableStyle(trialBalanceTable);
 
         final boolean totalsMismatch = Math.abs(totalDebit - totalCredit) > 0.01;
         final boolean balanced = !totalsMismatch;
@@ -347,8 +345,8 @@ public class trialBalance extends JFrame {
         lastTrialBalanceHash = currentHash;
         lastTrialBalanceBalanced = balanced;
 
-        // Right-align Debit and Credit columns; optionally highlight totals row when unbalanced
-        TableCellRenderer rightAlignRenderer = new DefaultTableCellRenderer() {
+        // Right-align Debit and Credit columns; highlight totals row when unbalanced (styling only)
+        TableCellRenderer rightAlignRenderer = new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable table, Object value,
                                                           boolean isSelected, boolean hasFocus,
@@ -356,11 +354,11 @@ public class trialBalance extends JFrame {
                 Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                 setHorizontalAlignment(SwingConstants.RIGHT);
                 if (totalsMismatch && row == table.getRowCount() - 1) {
-                    c.setBackground(Color.RED);
-                    c.setForeground(Color.WHITE);
+                    setOpaque(true);
+                    setBackground(Color.RED);
+                    setForeground(Color.WHITE);
                 } else {
-                    c.setBackground(isSelected ? table.getSelectionBackground() : table.getBackground());
-                    c.setForeground(isSelected ? table.getSelectionForeground() : table.getForeground());
+                    setOpaque(false);
                 }
                 return c;
             }
@@ -368,17 +366,19 @@ public class trialBalance extends JFrame {
         trialBalanceTable.getColumnModel().getColumn(1).setCellRenderer(rightAlignRenderer);
         trialBalanceTable.getColumnModel().getColumn(2).setCellRenderer(rightAlignRenderer);
 
-        // Account Name column: left-align; highlight totals row when unbalanced
         if (totalsMismatch) {
-            trialBalanceTable.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+            trialBalanceTable.getColumnModel().getColumn(0).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
                 @Override
                 public Component getTableCellRendererComponent(JTable table, Object value,
                                                               boolean isSelected, boolean hasFocus,
                                                               int row, int column) {
                     Component c = super.getTableCellRendererComponent(table, value, isSelected, hasFocus, row, column);
                     if (row == table.getRowCount() - 1) {
-                        c.setBackground(Color.RED);
-                        c.setForeground(Color.WHITE);
+                        setOpaque(true);
+                        setBackground(Color.RED);
+                        setForeground(Color.WHITE);
+                    } else {
+                        setOpaque(false);
                     }
                     return c;
                 }
@@ -386,6 +386,7 @@ public class trialBalance extends JFrame {
         }
 
         JScrollPane scroll = new JScrollPane(trialBalanceTable);
+        StandardTableStyle.styleScrollPaneForTable(scroll);
         trialBalanceContainer.add(scroll, BorderLayout.CENTER);
 
         if (Math.abs(totalDebit - totalCredit) > 0.01) {

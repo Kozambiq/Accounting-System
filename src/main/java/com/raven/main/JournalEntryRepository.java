@@ -8,7 +8,9 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Repository for saving and loading journal entries consisting of
@@ -291,6 +293,60 @@ public class JournalEntryRepository {
             }
         }
         // Lines are deleted by FK CASCADE
+    }
+
+    /**
+     * Returns the set of account names (normalized: uppercase, trimmed) that appear in
+     * journal_entry_lines for the given user's headers. Used to determine "posted" accounts.
+     */
+    public static Set<String> getPostedAccountNamesNormalized(Integer userId) {
+        Set<String> out = new HashSet<>();
+        if (userId == null) return out;
+        String sql = """
+                SELECT DISTINCT TRIM(UPPER(l.account_name)) AS n
+                  FROM journal_entry_lines l
+                  JOIN journal_entry_headers h ON l.header_id = h.id
+                 WHERE h.user_id = ?
+                """;
+        try (Connection conn = DBConnection.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setInt(1, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                while (rs.next()) {
+                    String n = rs.getString("n");
+                    if (n != null && !n.isEmpty()) out.add(n);
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        return out;
+    }
+
+    /**
+     * After renaming an account in Chart_of_Accounts, propagate the new name to all
+     * journal_entry_lines for this user so Journal Entries, Ledger, Trial Balance, and
+     * Financial Reports stay consistent. oldNormalized and newNormalized should be
+     * uppercase trimmed (same format as stored in CoA and in lines).
+     */
+    public static void updateAccountNameInLines(Integer userId, String oldNormalized, String newNormalized) {
+        if (userId == null || oldNormalized == null || newNormalized == null) return;
+        if (oldNormalized.equals(newNormalized)) return;
+        String sql = """
+                UPDATE journal_entry_lines
+                   SET account_name = ?
+                 WHERE header_id IN (SELECT id FROM journal_entry_headers WHERE user_id = ?)
+                   AND TRIM(UPPER(account_name)) = ?
+                """;
+        try (Connection conn = DBConnection.connect();
+             PreparedStatement ps = conn.prepareStatement(sql)) {
+            ps.setString(1, newNormalized);
+            ps.setInt(2, userId);
+            ps.setString(3, oldNormalized.trim().toUpperCase());
+            ps.executeUpdate();
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
     }
 }
 

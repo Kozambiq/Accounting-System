@@ -170,11 +170,10 @@ public class ledger extends JFrame {
         ledgerContainerCard.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
         ledgerContainerCard.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        ledgerListPanel = new JPanel();
+        // Panel that tracks viewport width so FlowLayout wraps cards to the next row when they don't fit
+        ledgerListPanel = new WrappingFlowPanel();
         ledgerListPanel.setOpaque(false);
-        ledgerListPanel.setLayout(new FlowLayout(FlowLayout.LEFT, 16, 16));
 
-        // Wrap ledger list panel in scroll pane for dynamic scrolling
         JScrollPane ledgerScrollPane = new JScrollPane(ledgerListPanel);
         ledgerScrollPane.setBorder(null);
         ledgerScrollPane.setOpaque(false);
@@ -704,28 +703,26 @@ public class ledger extends JFrame {
 
     /**
      * Create a title panel with account name on the left and balance on the right.
-     * 
-     * @param accountName The account display name
+     *
+     * @param accountName The account display name (shown without any prefix)
      * @param balanceText The formatted balance text
      * @return A JPanel with BorderLayout containing the title components
      */
     private JPanel createTitlePanel(String accountName, String balanceText) {
         JPanel titlePanel = new JPanel(new BorderLayout());
         titlePanel.setOpaque(false);
-        
-        // Account name on the left
-        JLabel accountLabel = new JLabel("Ledger - " + accountName);
-        accountLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+
+        JLabel accountLabel = new JLabel(accountName != null ? accountName : "");
+        accountLabel.setFont(getWorkSansBold(14f));
         accountLabel.setForeground(new Color(0x2F2F2F));
         titlePanel.add(accountLabel, BorderLayout.WEST);
-        
-        // Balance on the right
+
         JLabel balanceLabel = new JLabel(balanceText);
-        balanceLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
+        balanceLabel.setFont(getWorkSansBold(14f));
         balanceLabel.setForeground(new Color(0x2F2F2F));
         balanceLabel.setHorizontalAlignment(SwingConstants.RIGHT);
         titlePanel.add(balanceLabel, BorderLayout.EAST);
-        
+
         return titlePanel;
     }
 
@@ -781,6 +778,71 @@ public class ledger extends JFrame {
             g2.fillRoundRect(0, 0, getWidth(), getHeight(), arc, arc);
             g2.dispose();
             super.paintComponent(g);
+        }
+    }
+
+    /**
+     * JPanel with FlowLayout that implements Scrollable so the scroll pane sizes it to the
+     * viewport width. Cards wrap to the next row when they don't fit; preferred height
+     * is computed for that wrapped layout so all cards are visible with vertical scroll.
+     */
+    private static class WrappingFlowPanel extends JPanel implements Scrollable {
+        private static final int HGAP = 16;
+        private static final int VGAP = 16;
+
+        WrappingFlowPanel() {
+            setLayout(new FlowLayout(FlowLayout.LEFT, HGAP, VGAP));
+        }
+
+        @Override
+        public Dimension getPreferredSize() {
+            int width = getWidth();
+            if (width <= 0 && getParent() instanceof JViewport) {
+                width = getParent().getWidth();
+            }
+            if (width <= 0) {
+                width = 800;
+            }
+            int x = 0;
+            int y = 0;
+            int rowHeight = 0;
+            for (Component c : getComponents()) {
+                Dimension d = c.getPreferredSize();
+                if (x + d.width + HGAP > width && x > 0) {
+                    y += rowHeight + VGAP;
+                    x = 0;
+                    rowHeight = 0;
+                }
+                x += d.width + HGAP;
+                rowHeight = Math.max(rowHeight, d.height);
+            }
+            int totalHeight = y + rowHeight;
+            return new Dimension(width, totalHeight);
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportWidth() {
+            return true;
+        }
+
+        @Override
+        public boolean getScrollableTracksViewportHeight() {
+            return false;
+        }
+
+        @Override
+        public Dimension getPreferredScrollableViewportSize() {
+            return getPreferredSize();
+        }
+
+        @Override
+        public int getScrollableUnitIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return 16;
+        }
+
+        @Override
+        public int getScrollableBlockIncrement(Rectangle visibleRect, int orientation, int direction) {
+            return orientation == SwingConstants.VERTICAL ? visibleRect.height : visibleRect.width;
         }
     }
 

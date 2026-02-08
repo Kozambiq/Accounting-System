@@ -1,7 +1,6 @@
 package com.raven.main;
 
 import javax.swing.*;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
 import java.awt.*;
 import java.awt.event.MouseAdapter;
@@ -277,37 +276,45 @@ public class financialReports extends JFrame {
         model.addRow(new String[]{});
         model.addRow(new String[]{"Net Income", formatNum(netIncome)});
 
-        JTable table = new JTable(model);
-        table.setFillsViewportHeight(true);
-        DefaultTableCellRenderer rightAlign = new DefaultTableCellRenderer();
-        rightAlign.setHorizontalAlignment(SwingConstants.RIGHT);
-        table.getColumnModel().getColumn(1).setCellRenderer(rightAlign);
+        JTable table = StandardTableStyle.createStandardTable(model);
+        StandardTableStyle.applyStandardTableStyle(table);
 
         int netIncomeRow = model.getRowCount() - 1;
-        table.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+        Color highlight = new Color(0xB9FF7F);
+        Color highlightFg = new Color(0x2e6417);
+        table.getColumnModel().getColumn(0).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
                 if (row == netIncomeRow) {
-                    c.setBackground(new Color(0xB9FF7F));
-                    c.setForeground(new Color(0x2e6417));
+                    setOpaque(true);
+                    setBackground(highlight);
+                    setForeground(highlightFg);
+                } else {
+                    setOpaque(false);
                 }
                 return c;
             }
         });
-        table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(1).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
+                setHorizontalAlignment(SwingConstants.RIGHT);
                 if (row == netIncomeRow) {
-                    c.setBackground(new Color(0xB9FF7F));
-                    c.setForeground(new Color(0x2e6417));
-                } else if (c instanceof JLabel jl) jl.setHorizontalAlignment(SwingConstants.RIGHT);
+                    setOpaque(true);
+                    setBackground(highlight);
+                    setForeground(highlightFg);
+                } else {
+                    setOpaque(false);
+                }
                 return c;
             }
         });
 
-        content.add(new JScrollPane(table), BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(table);
+        StandardTableStyle.styleScrollPaneForTable(scroll);
+        content.add(scroll, BorderLayout.CENTER);
         reportContainer.add(content, BorderLayout.CENTER);
         reportContainer.revalidate();
         reportContainer.repaint();
@@ -484,37 +491,47 @@ public class financialReports extends JFrame {
         model.addRow(new String[]{});
         model.addRow(new String[]{totalNetCashFlow >= 0 ? "Total Net Cash Flow (Net Inflow)" : "Total Net Cash Flow (Net Outflow)", formatNum(Math.abs(totalNetCashFlow))});
 
-        JTable table = new JTable(model);
-        table.setFillsViewportHeight(true);
+        JTable table = StandardTableStyle.createStandardTable(model);
+        StandardTableStyle.applyStandardTableStyle(table);
         table.getColumnModel().getColumn(0).setPreferredWidth(220);
         table.getColumnModel().getColumn(1).setPreferredWidth(180);
         int totalRow = 4; // Total Net Cash Flow row index
+        Color highlight = new Color(0xB9FF7F);
+        Color highlightFg = new Color(0x2e6417);
 
-        table.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(0).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
                 if (row == totalRow) {
-                    c.setBackground(new Color(0xB9FF7F));
-                    c.setForeground(new Color(0x2e6417));
+                    setOpaque(true);
+                    setBackground(highlight);
+                    setForeground(highlightFg);
+                } else {
+                    setOpaque(false);
                 }
                 return c;
             }
         });
-        table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(1).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
+                setHorizontalAlignment(SwingConstants.RIGHT);
                 if (row == totalRow) {
-                    c.setBackground(new Color(0xB9FF7F));
-                    c.setForeground(new Color(0x2e6417));
+                    setOpaque(true);
+                    setBackground(highlight);
+                    setForeground(highlightFg);
+                } else {
+                    setOpaque(false);
                 }
-                if (c instanceof JLabel jl) jl.setHorizontalAlignment(SwingConstants.RIGHT);
                 return c;
             }
         });
 
-        content.add(new JScrollPane(table), BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(table);
+        StandardTableStyle.styleScrollPaneForTable(scroll);
+        content.add(scroll, BorderLayout.CENTER);
         reportContainer.add(content, BorderLayout.CENTER);
         reportContainer.revalidate();
         reportContainer.repaint();
@@ -622,29 +639,49 @@ public class financialReports extends JFrame {
         for (String[] row : equityRows) model.addRow(row);
         model.addRow(new String[]{"Total Equity", formatNum(totalEquity)});
 
-        JTable table = new JTable(model);
-        table.setFillsViewportHeight(true);
+        JTable table = StandardTableStyle.createStandardTable(model);
+        StandardTableStyle.applyStandardTableStyle(table);
         Color highlight = new Color(0xB9FF7F);
+        Color highlightFg = new Color(0x2e6417);
         int[] totalRows = {assetRows.size() + 2, assetRows.size() + 4 + liabilityRows.size() + 2, model.getRowCount() - 1};
-        table.getColumnModel().getColumn(0).setCellRenderer(new DefaultTableCellRenderer() {
+
+        table.getColumnModel().getColumn(0).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
-                for (int tr : totalRows) if (row == tr) { c.setBackground(highlight); c.setForeground(new Color(0x2e6417)); break; }
+                boolean isTotal = false;
+                for (int tr : totalRows) if (row == tr) { isTotal = true; break; }
+                if (isTotal) {
+                    setOpaque(true);
+                    setBackground(highlight);
+                    setForeground(highlightFg);
+                } else {
+                    setOpaque(false);
+                }
                 return c;
             }
         });
-        table.getColumnModel().getColumn(1).setCellRenderer(new DefaultTableCellRenderer() {
+        table.getColumnModel().getColumn(1).setCellRenderer(new StandardTableStyle.StandardTableRenderer() {
             @Override
             public Component getTableCellRendererComponent(JTable t, Object value, boolean sel, boolean focus, int row, int col) {
                 Component c = super.getTableCellRendererComponent(t, value, sel, focus, row, col);
-                for (int tr : totalRows) if (row == tr) { c.setBackground(highlight); c.setForeground(new Color(0x2e6417)); break; }
-                if (c instanceof JLabel jl) jl.setHorizontalAlignment(SwingConstants.RIGHT);
+                setHorizontalAlignment(SwingConstants.RIGHT);
+                boolean isTotal = false;
+                for (int tr : totalRows) if (row == tr) { isTotal = true; break; }
+                if (isTotal) {
+                    setOpaque(true);
+                    setBackground(highlight);
+                    setForeground(highlightFg);
+                } else {
+                    setOpaque(false);
+                }
                 return c;
             }
         });
 
-        content.add(new JScrollPane(table), BorderLayout.CENTER);
+        JScrollPane scroll = new JScrollPane(table);
+        StandardTableStyle.styleScrollPaneForTable(scroll);
+        content.add(scroll, BorderLayout.CENTER);
         reportContainer.add(content, BorderLayout.CENTER);
         reportContainer.revalidate();
         reportContainer.repaint();

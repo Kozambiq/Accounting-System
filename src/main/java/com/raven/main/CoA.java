@@ -1,16 +1,10 @@
 package com.raven.main;
 
 import javax.swing.*;
-import javax.swing.border.EmptyBorder;
-import javax.swing.table.DefaultTableCellRenderer;
 import javax.swing.table.DefaultTableModel;
-import javax.swing.table.JTableHeader;
 import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
-import javax.swing.table.TableModel;
 import java.awt.*;
-import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.MouseAdapter;
 import java.awt.event.MouseEvent;
 import java.io.InputStream;
@@ -21,8 +15,10 @@ import java.sql.SQLException;
 import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
+import java.util.Set;
 
 public class CoA extends JFrame {
 
@@ -35,6 +31,8 @@ public class CoA extends JFrame {
     private JTable accountsTable;
     private JLabel accountsCountLabel;
     private final List<Integer> accountIds = new ArrayList<>();
+    /** Account IDs that have posted transactions (in journal_entry_lines); editing is locked for these. */
+    private final Set<Integer> postedAccountIds = new HashSet<>();
 
     public CoA() {
         setTitle("ACCOUNTING SYSTEM - Chart of Accounts");
@@ -58,7 +56,15 @@ public class CoA extends JFrame {
         mainContent.setBackground(new Color(0xE6E6EB));
         mainContent.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
 
-        // Top row: metric card + "Add an Account" button
+        // Top bar with title (same position as dashboard: topBar NORTH, title WEST)
+        JPanel topBar = new JPanel(new BorderLayout());
+        topBar.setOpaque(false);
+        JLabel coaTitle = new JLabel("Chart of Accounts");
+        coaTitle.setFont(getWorkSansBold(26f));
+        coaTitle.setForeground(new Color(0x2e6417));
+        topBar.add(coaTitle, BorderLayout.WEST);
+
+        // Row below: metric card + "Add an Account" button
         JPanel topRow = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 0));
         topRow.setOpaque(false);
 
@@ -71,7 +77,7 @@ public class CoA extends JFrame {
         RoundedButton addAccountButton = new RoundedButton("Add an Account");
         addAccountButton.setBackground(new Color(0x19A64A)); // same green accent used elsewhere
         addAccountButton.setForeground(Color.WHITE);
-        addAccountButton.setFont(new Font("SansSerif", Font.BOLD, 16));
+        addAccountButton.setFont(getWorkSansBold(16f));
         addAccountButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         addAccountButton.setFocusPainted(false);
         addAccountButton.setBorderPainted(false);
@@ -95,9 +101,13 @@ public class CoA extends JFrame {
 
         topRow.add(addAccountButton);
 
-        // Put top row at the top, table fills remaining space
-        mainContent.add(topRow, BorderLayout.NORTH);
-        mainContent.add(createAccountsTablePanel(), BorderLayout.CENTER);
+        JPanel centerContent = new JPanel(new BorderLayout(20, 20));
+        centerContent.setOpaque(false);
+        centerContent.add(topRow, BorderLayout.NORTH);
+        centerContent.add(createAccountsTablePanel(), BorderLayout.CENTER);
+
+        mainContent.add(topBar, BorderLayout.NORTH);
+        mainContent.add(centerContent, BorderLayout.CENTER);
 
         root.add(sideNav, BorderLayout.WEST);
         root.add(mainContent, BorderLayout.CENTER);
@@ -245,50 +255,14 @@ public class CoA extends JFrame {
             }
         };
 
-        accountsTable = new RoundedRowTable(accountsTableModel);
-        accountsTable.setFillsViewportHeight(true);
-        // slightly taller rows for better readability
-        accountsTable.setRowHeight(40);
-        accountsTable.setShowHorizontalLines(false);
-        accountsTable.setShowVerticalLines(false);
-        accountsTable.setIntercellSpacing(new Dimension(0, 0));
-        // Remove hover/selection highlight effect by disabling selection
-        accountsTable.setRowSelectionAllowed(false);
-        accountsTable.setColumnSelectionAllowed(false);
-        accountsTable.setCellSelectionEnabled(false);
-        accountsTable.setFocusable(false);
-        Color selectionColor = new Color(0x34C96D);              // kept for renderer signature
-        // Background for empty area (no rows) matches card background
-        Color tableBg = new Color(0xcdc6c6);
-        accountsTable.setBackground(tableBg);
-        accountsTable.setOpaque(true);
-        accountsTable.setGridColor(new Color(0xE0E0E0));
-        accountsTable.setFont(new Font("SansSerif", Font.PLAIN, 14));
-
-        // Alternating row colors & rounded rows handled in custom table/renderer
-        accountsTable.setDefaultRenderer(Object.class, new AlternatingRowRenderer(selectionColor));
-        // Utilities column uses a Delete button
-        accountsTable.getColumnModel().getColumn(4).setCellRenderer(new DeleteButtonRenderer());
-        accountsTable.getColumnModel().getColumn(4).setCellEditor(new DeleteButtonEditor());
-
-        // Header styling
-        JTableHeader header = accountsTable.getTableHeader();
-        header.setBackground(new Color(0x19A64A));
-        header.setForeground(Color.WHITE);
-        header.setFont(getWorkSansBold(14f));
-        header.setReorderingAllowed(false);
-
-        Dimension headerSize = header.getPreferredSize();
-        headerSize.height = headerSize.height + 8;       // a bit taller than default
-        header.setPreferredSize(headerSize);
+        accountsTable = StandardTableStyle.createStandardTable(accountsTableModel);
+        StandardTableStyle.applyStandardTableStyle(accountsTable);
+        accountsTable.getColumnModel().getColumn(4).setPreferredWidth(180);
+        accountsTable.getColumnModel().getColumn(4).setCellRenderer(new UtilityButtonRenderer());
+        accountsTable.getColumnModel().getColumn(4).setCellEditor(new UtilityButtonEditor());
 
         JScrollPane scroll = new JScrollPane(accountsTable);
-        scroll.setBorder(BorderFactory.createEmptyBorder());
-        scroll.setOpaque(false);
-        // Ensure the viewport has a solid background so no underlying images show through
-        scroll.getViewport().setOpaque(true);
-        scroll.getViewport().setBackground(new Color(0xcdc6c6));
-        scroll.setHorizontalScrollBarPolicy(ScrollPaneConstants.HORIZONTAL_SCROLLBAR_NEVER);
+        StandardTableStyle.styleScrollPaneForTable(scroll);
 
         roundedContainer.add(scroll, BorderLayout.CENTER);
 
@@ -298,113 +272,38 @@ public class CoA extends JFrame {
         return roundedContainer;
     }
 
-    /**
-     * Custom JTable that paints each entire row as a single rounded rectangle
-     * spanning all columns. Alternating row colors and selection are handled
-     * here so that rows appear continuous instead of per-cell pills.
-     */
-    private static class RoundedRowTable extends JTable {
-        private final Color evenRowColor = Color.WHITE;
-        private final Color oddRowColor  = new Color(0xF2, 0xF2, 0xF2);
-        private final Color selectionRowColor = new Color(0x34, 0xC9, 0x6D); // lighter shade of 0x19A64A
-
-        public RoundedRowTable(TableModel model) {
-            super(model);
-            setOpaque(true);
-        }
-
-        @Override
-        protected void paintComponent(Graphics g) {
-            Graphics2D g2 = (Graphics2D) g.create();
-            g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
-
-            // Base background for the whole table area to prevent any underlying
-            // icons or images from showing through.
-            g2.setColor(new Color(0xcdc6c6));
-            g2.fillRect(0, 0, getWidth(), getHeight());
-
-            int rowCount = getRowCount();
-            int rowHeight = getRowHeight();
-            int width = getWidth();
-            int arc = 18;
-            int marginX = 4;   // small horizontal margin inside the card
-            int marginY = 4;   // larger vertical inset for more space between rows
-
-            // Paint rounded background for each visible row
-            for (int row = 0; row < rowCount; row++) {
-                int y = row * rowHeight;
-
-                // We intentionally ignore selection here to remove click effects.
-                Color bg = (row % 2 == 0) ? evenRowColor : oddRowColor;
-
-                g2.setColor(bg);
-                g2.fillRoundRect(
-                        marginX,
-                        y + marginY,
-                        width - marginX * 2,
-                        rowHeight - marginY * 2,
-                        arc,
-                        arc
-                );
-            }
-
-            g2.dispose();
-
-            // Let JTable paint text and grid lines, but skip its own background fill
-            boolean wasOpaque = isOpaque();
-            setOpaque(false);
-            super.paintComponent(g);
-            setOpaque(wasOpaque);
-        }
-    }
-
-    // Alternating row renderer that relies on the table's row painting
-    private static class AlternatingRowRenderer extends DefaultTableCellRenderer {
-        private final Color textColor = new Color(0x2F, 0x2F, 0x2F);
-        private final Color selectionBg;
-        private final Color selectionFg = Color.WHITE;
-
-        public AlternatingRowRenderer(Color selectionBg) {
-            this.selectionBg = selectionBg;
-            setOpaque(false);
-            // Extra left padding so text does not clash with rounded corners
-            // (slightly more to the right per column as requested)
-            setBorder(new EmptyBorder(6, 40, 6, 10));
-        }
-
-        @Override
-        public Component getTableCellRendererComponent(
-                JTable table, Object value, boolean isSelected,
-                boolean hasFocus, int row, int column) {
-
-            super.getTableCellRendererComponent(table, value, false, hasFocus, row, column);
-
-            // Use dark text on light backgrounds; keep white text when selected
-            setForeground(isSelected ? selectionFg : textColor);
-            setHorizontalAlignment(LEFT);
-
-            return this;
-        }
-    }
-
-    // Renderer for the "Delete" button in the Utilities column
-    private class DeleteButtonRenderer implements TableCellRenderer {
-        private final RoundedButton button;
+    // Renderer for Edit + Delete buttons in the Utility column (centered in cell)
+    private class UtilityButtonRenderer implements TableCellRenderer {
         private final JPanel wrapper;
 
-        public DeleteButtonRenderer() {
-            button = new RoundedButton("Delete");
-            button.setBackground(Color.RED);
-            button.setForeground(Color.WHITE);
-            button.setFont(getWorkSansRegular(12f));
-            button.setFocusPainted(false);
-            button.setBorderPainted(false);
-            button.setContentAreaFilled(false);
-            button.setPreferredSize(new Dimension(70, 24));
+        public UtilityButtonRenderer() {
+            RoundedButton editBtn = new RoundedButton("Edit");
+            editBtn.setBackground(new Color(0x2e6417));
+            editBtn.setForeground(Color.WHITE);
+            editBtn.setFont(getWorkSansRegular(12f));
+            editBtn.setFocusPainted(false);
+            editBtn.setBorderPainted(false);
+            editBtn.setContentAreaFilled(false);
+            editBtn.setPreferredSize(new Dimension(68, 28));
+            editBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
+            RoundedButton deleteBtn = new RoundedButton("Delete");
+            deleteBtn.setBackground(Color.RED);
+            deleteBtn.setForeground(Color.WHITE);
+            deleteBtn.setFont(getWorkSansRegular(12f));
+            deleteBtn.setFocusPainted(false);
+            deleteBtn.setBorderPainted(false);
+            deleteBtn.setContentAreaFilled(false);
+            deleteBtn.setPreferredSize(new Dimension(82, 28));
+            deleteBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+
+            JPanel inner = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+            inner.setOpaque(false);
+            inner.add(editBtn);
+            inner.add(deleteBtn);
             wrapper = new JPanel(new GridBagLayout());
             wrapper.setOpaque(false);
-            wrapper.add(button);
+            wrapper.add(inner, new GridBagConstraints());
         }
 
         @Override
@@ -415,48 +314,205 @@ public class CoA extends JFrame {
         }
     }
 
-    // Editor for the "Delete" button in the Utilities column
-    private class DeleteButtonEditor extends AbstractCellEditor implements TableCellEditor, ActionListener {
-        private final RoundedButton button;
+    // Editor for Edit + Delete buttons in the Utility column (centered in cell; Edit locked when posted)
+    private class UtilityButtonEditor extends AbstractCellEditor implements TableCellEditor {
+        private final RoundedButton editButton;
+        private final RoundedButton deleteButton;
         private final JPanel wrapper;
         private int currentRow = -1;
 
-        public DeleteButtonEditor() {
-            button = new RoundedButton("Delete");
-            button.setBackground(Color.RED);
-            button.setForeground(Color.WHITE);
-            button.setFont(getWorkSansRegular(12f));
-            button.setOpaque(false);
-            button.setFocusPainted(false);
-            button.setBorderPainted(false);
-            button.setContentAreaFilled(false);
-            button.setPreferredSize(new Dimension(70, 24));
-            button.addActionListener(this);
+        public UtilityButtonEditor() {
+            editButton = new RoundedButton("Edit");
+            editButton.setBackground(new Color(0x2e6417));
+            editButton.setForeground(Color.WHITE);
+            editButton.setFont(getWorkSansRegular(12f));
+            editButton.setOpaque(false);
+            editButton.setFocusPainted(false);
+            editButton.setBorderPainted(false);
+            editButton.setContentAreaFilled(false);
+            editButton.setPreferredSize(new Dimension(68, 28));
+            editButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            editButton.addActionListener(e -> {
+                if (currentRow >= 0 && currentRow < accountIds.size()) {
+                    if (postedAccountIds.contains(accountIds.get(currentRow))) {
+                        showCannotEditPostedDialog();
+                    } else {
+                        handleEditAtRow(currentRow);
+                    }
+                }
+                fireEditingStopped();
+            });
 
+            deleteButton = new RoundedButton("Delete");
+            deleteButton.setBackground(Color.RED);
+            deleteButton.setForeground(Color.WHITE);
+            deleteButton.setFont(getWorkSansRegular(12f));
+            deleteButton.setOpaque(false);
+            deleteButton.setFocusPainted(false);
+            deleteButton.setBorderPainted(false);
+            deleteButton.setContentAreaFilled(false);
+            deleteButton.setPreferredSize(new Dimension(82, 28));
+            deleteButton.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            deleteButton.addActionListener(e -> {
+                if (currentRow >= 0 && currentRow < accountIds.size()) handleDeleteAtRow(currentRow);
+                fireEditingStopped();
+            });
+
+            JPanel inner = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+            inner.setOpaque(false);
+            inner.add(editButton);
+            inner.add(deleteButton);
             wrapper = new JPanel(new GridBagLayout());
             wrapper.setOpaque(false);
-            wrapper.add(button);
+            wrapper.add(inner, new GridBagConstraints());
         }
 
         @Override
         public Component getTableCellEditorComponent(JTable table, Object value,
                                                      boolean isSelected, int row, int column) {
             currentRow = row;
+            boolean posted = row >= 0 && row < accountIds.size() && postedAccountIds.contains(accountIds.get(row));
+            // Keep button clickable so the action listener runs and shows the "cannot edit" dialog
+            editButton.setEnabled(true);
+            editButton.setToolTipText(posted ? "Editing disabled — account has posted transactions" : null);
+            editButton.setBackground(posted ? new Color(0x8a9a7a) : new Color(0x2e6417));
             return wrapper;
         }
 
         @Override
         public Object getCellEditorValue() {
-            return "Delete";
+            return null;
         }
+    }
 
-        @Override
-        public void actionPerformed(ActionEvent e) {
-            if (currentRow >= 0 && currentRow < accountIds.size()) {
-                handleDeleteAtRow(currentRow);
-            }
-            fireEditingStopped();
+    private void showCannotEditPostedDialog() {
+        JDialog d = new JDialog(this, "Edit Not Allowed", true);
+        d.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        d.setLayout(new BorderLayout(12, 12));
+        JLabel msg = new JLabel("<html><div style='text-align:center;'>This account cannot be edited because it already has posted transactions.</div></html>");
+        msg.setFont(getWorkSansRegular(14f));
+        msg.setBorder(BorderFactory.createEmptyBorder(20, 24, 20, 24));
+        d.add(msg, BorderLayout.CENTER);
+        JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        btnPanel.setBorder(BorderFactory.createEmptyBorder(0, 0, 12, 0));
+        RoundedButton okBtn = new RoundedButton("OK");
+        okBtn.setBackground(new Color(0x2e6417));
+        okBtn.setForeground(Color.WHITE);
+        okBtn.setFont(getWorkSansRegular(14f));
+        okBtn.addActionListener(e -> d.dispose());
+        btnPanel.add(okBtn);
+        d.add(btnPanel, BorderLayout.SOUTH);
+        d.pack();
+        d.setLocationRelativeTo(this);
+        d.setVisible(true);
+    }
+
+    private void handleEditAtRow(int row) {
+        if (row < 0 || row >= accountIds.size()) return;
+        if (postedAccountIds.contains(accountIds.get(row))) {
+            showCannotEditPostedDialog();
+            return;
         }
+        int accountId = accountIds.get(row);
+        String currentName = (String) accountsTableModel.getValueAt(row, 2);
+        String currentType = (String) accountsTableModel.getValueAt(row, 3);
+
+        Integer userId = Session.getUserId();
+        if (userId == null) return;
+        String storedName = null;
+        try (Connection conn = DBConnection.connect();
+             PreparedStatement ps = conn.prepareStatement("SELECT account_name FROM Chart_of_Accounts WHERE id = ? AND user_id = ?")) {
+            ps.setInt(1, accountId);
+            ps.setInt(2, userId);
+            try (ResultSet rs = ps.executeQuery()) {
+                if (rs.next()) storedName = rs.getString("account_name");
+            }
+        } catch (SQLException ex) {
+            ex.printStackTrace();
+            return;
+        }
+        final String oldNormalized = storedName != null ? storedName.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", " ") : "";
+
+        JDialog dialog = new JDialog(this, "Edit Account", true);
+        dialog.setDefaultCloseOperation(JDialog.DISPOSE_ON_CLOSE);
+        dialog.setLayout(new BorderLayout(12, 12));
+
+        JPanel form = new JPanel();
+        form.setLayout(new BoxLayout(form, BoxLayout.Y_AXIS));
+        form.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
+
+        JLabel nameLabel = new JLabel("Account Name:");
+        nameLabel.setFont(getWorkSansRegular(14f));
+        form.add(nameLabel);
+        form.add(Box.createVerticalStrut(4));
+        JTextField nameField = new JTextField(currentName != null ? currentName : "", 24);
+        nameField.setFont(getWorkSansRegular(14f));
+        nameField.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(0x999999), 1),
+                BorderFactory.createEmptyBorder(6, 8, 6, 8)));
+        form.add(nameField);
+        form.add(Box.createVerticalStrut(12));
+        JLabel typeLabel = new JLabel("Account Type:");
+        typeLabel.setFont(getWorkSansRegular(14f));
+        form.add(typeLabel);
+        form.add(Box.createVerticalStrut(4));
+        String[] types = { "Asset", "Liability", "Equity", "Revenues", "Expenses" };
+        JComboBox<String> typeCombo = new JComboBox<>(types);
+        typeCombo.setFont(getWorkSansRegular(14f));
+        if (currentType != null) {
+            for (int i = 0; i < types.length; i++) {
+                if (currentType.equalsIgnoreCase(types[i])) { typeCombo.setSelectedIndex(i); break; }
+            }
+        }
+        form.add(typeCombo);
+        dialog.add(form, BorderLayout.CENTER);
+
+        JPanel buttons = new JPanel(new FlowLayout(FlowLayout.RIGHT, 8, 0));
+        RoundedButton saveBtn = new RoundedButton("Save");
+        saveBtn.setBackground(new Color(0x2e6417));
+        saveBtn.setForeground(Color.WHITE);
+        saveBtn.setFont(getWorkSansRegular(14f));
+        RoundedButton cancelBtn = new RoundedButton("Cancel");
+        cancelBtn.setBackground(Color.GRAY);
+        cancelBtn.setForeground(Color.WHITE);
+        cancelBtn.setFont(getWorkSansRegular(14f));
+        saveBtn.addActionListener(e -> {
+            String newName = nameField.getText() != null ? nameField.getText().trim() : "";
+            if (newName.isEmpty()) {
+                JOptionPane.showMessageDialog(dialog, "Account name is required.", "Validation", JOptionPane.WARNING_MESSAGE);
+                return;
+            }
+            String newType = (String) typeCombo.getSelectedItem();
+            if (newType == null) return;
+            String normalized = newName.toUpperCase(Locale.ROOT).trim().replaceAll("\\s+", " ");
+            String updateSql = "UPDATE Chart_of_Accounts SET account_name = ?, account_type = ? WHERE id = ? AND user_id = ?";
+            Integer uid = Session.getUserId();
+            if (uid == null) return;
+            try (Connection conn = DBConnection.connect();
+                 PreparedStatement ps = conn.prepareStatement(updateSql)) {
+                ps.setString(1, normalized);
+                ps.setString(2, newType);
+                ps.setInt(3, accountId);
+                ps.setInt(4, uid);
+                ps.executeUpdate();
+                JournalEntryRepository.updateAccountNameInLines(uid, oldNormalized, normalized);
+                ActivityLogRepository.log("edit", "chart_of_accounts", "Account " + ChartOfAccountsRepository.toTitleCase(normalized) + " updated");
+                NotificationRepository.insert(uid, "Account edited: " + ChartOfAccountsRepository.toTitleCase(normalized));
+                reloadAccountsTable();
+            } catch (SQLException ex) {
+                ex.printStackTrace();
+                JOptionPane.showMessageDialog(dialog, "Failed to update account.", "Error", JOptionPane.ERROR_MESSAGE);
+                return;
+            }
+            dialog.dispose();
+        });
+        cancelBtn.addActionListener(e -> dialog.dispose());
+        buttons.add(saveBtn);
+        buttons.add(cancelBtn);
+        dialog.add(buttons, BorderLayout.SOUTH);
+        dialog.pack();
+        dialog.setLocationRelativeTo(this);
+        dialog.setVisible(true);
     }
 
     /**
@@ -483,16 +539,23 @@ public class CoA extends JFrame {
                  ORDER BY created_at DESC, id DESC
                 """;
 
+        Set<String> postedNames = JournalEntryRepository.getPostedAccountNamesNormalized(userId);
+
         try (Connection conn = DBConnection.connect();
              PreparedStatement ps = conn.prepareStatement(sql)) {
             ps.setInt(1, userId);
             accountIds.clear();
+            postedAccountIds.clear();
             try (ResultSet rs = ps.executeQuery()) {
                 while (rs.next()) {
                     int accountId = rs.getInt("id");
                     String storedName = rs.getString("account_name");
                     String storedType = rs.getString("account_type");
                     String createdAt = rs.getString("created_at");
+                    String normalized = storedName != null ? storedName.trim().toUpperCase(Locale.ROOT) : "";
+                    if (postedNames.contains(normalized)) {
+                        postedAccountIds.add(accountId);
+                    }
 
                     String datePart = "";
                     String timePart = "";
@@ -552,6 +615,7 @@ public class CoA extends JFrame {
         dialog.setLayout(new BorderLayout(10, 10));
 
         JLabel label = new JLabel(message);
+        label.setFont(getWorkSansRegular(14f));
         label.setBorder(BorderFactory.createEmptyBorder(16, 16, 16, 16));
         dialog.add(label, BorderLayout.CENTER);
 
@@ -584,6 +648,7 @@ public class CoA extends JFrame {
                     ps.setInt(2, userId);
                     ps.executeUpdate();
                     ActivityLogRepository.log("remove", "chart_of_accounts", "Chart of Accounts account removed");
+                    NotificationRepository.insert(userId, "Account deleted: " + accountName);
                 } catch (SQLException ex) {
                     ex.printStackTrace();
                 }
@@ -626,12 +691,12 @@ public class CoA extends JFrame {
         bottomContent.add(Box.createVerticalGlue());
 
         accountsCountLabel = new JLabel(amount);
-        accountsCountLabel.setFont(new Font("SansSerif", Font.BOLD, 34));
+        accountsCountLabel.setFont(getWorkSansBold(34f));
         accountsCountLabel.setForeground(new Color(0x2F2F2F));
         accountsCountLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
         JLabel descLabel = new JLabel(label);
-        descLabel.setFont(new Font("SansSerif", Font.PLAIN, 27));
+        descLabel.setFont(getWorkSansRegular(27f));
         descLabel.setForeground(new Color(0x555555));
         descLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
 
@@ -712,9 +777,11 @@ public class CoA extends JFrame {
             // Rounded text field for account name
             accountNameField = new JTextField();
             accountNameField.setFont(workSansRegular.deriveFont(14f));
-            accountNameField.setBorder(BorderFactory.createEmptyBorder(6, 10, 6, 10));
 
             RoundedInputWrapper nameWrapper = new RoundedInputWrapper(accountNameField);
+            accountNameField.setBorder(BorderFactory.createCompoundBorder(
+                    BorderFactory.createLineBorder(new Color(0x999999), 1),
+                    BorderFactory.createEmptyBorder(6, 10, 6, 10)));
             formPanel.add(nameWrapper);
             formPanel.add(Box.createVerticalStrut(14));
 

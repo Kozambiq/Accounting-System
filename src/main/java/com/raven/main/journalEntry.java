@@ -176,16 +176,12 @@ public class journalEntry extends JFrame {
             public void changedUpdate(DocumentEvent e) { applySearchFilter(); }
         });
 
-        RoundedHeaderBox searchButton = new RoundedHeaderBox(new Color(0x2e6417));
-        searchButton.setPreferredSize(new Dimension(90, 40));
-        searchButton.setLayout(new GridBagLayout());
+
         JLabel searchLabel = new JLabel("Search");
         searchLabel.setForeground(Color.WHITE);
         searchLabel.setFont(new Font("SansSerif", Font.BOLD, 14));
-        searchButton.add(searchLabel);
 
         searchRow.add(searchField, BorderLayout.CENTER);
-        searchRow.add(searchButton, BorderLayout.EAST);
 
         stack.add(searchRow);
 
