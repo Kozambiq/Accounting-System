@@ -3,15 +3,10 @@ package com.raven.main;
 import javax.swing.*;
 import java.awt.*;
 
-/**
- * Main application window after authentication.
- *
- * Uses a CardLayout to switch between the dashboard (homePage view) and the
- * Chart of Accounts (CoA view), giving smooth transitions similar to the
- * login/signup flow while preserving the current Session.
- */
+// Main application window that manages different views (dashboard, chart of accounts, journal entry, ledger, trial balance, financial reports) using a CardLayout
 public class AppWindow extends JFrame {
 
+    // Constants for card names to identify different views in the CardLayout
     public static final String CARD_DASHBOARD = "dashboard";
     public static final String CARD_COA = "coa";
     public static final String CARD_JOURNAL = "journal";
@@ -19,6 +14,7 @@ public class AppWindow extends JFrame {
     public static final String CARD_TRIAL_BALANCE = "trialBalance";
     public static final String CARD_FINANCIAL_REPORTS = "financialReports";
 
+    // CardLayout to switch between different views and a main panel that holds the cards
     private final CardLayout cardLayout;
     private final JPanel cardPanel;
     private final homePage dashboardFrame;
@@ -26,7 +22,10 @@ public class AppWindow extends JFrame {
     private final trialBalance trialBalanceFrame;
     private final financialReports financialReportsFrame;
 
+    // Constructor to set up the main application window
     public AppWindow() {
+
+        // Set up the main application window with title, default close operation, size, and initialize the CardLayout and different view cards
         setTitle("ACCOUNTING SYSTEM");
         setDefaultCloseOperation(EXIT_ON_CLOSE);
         setExtendedState(JFrame.MAXIMIZED_BOTH);
@@ -65,6 +64,7 @@ public class AppWindow extends JFrame {
             dashboardFrame.refreshDashboard();
         });
 
+        // Add all the different view cards to the main card panel
         cardPanel.add(dashboardView, CARD_DASHBOARD);
         cardPanel.add(coaView, CARD_COA);
         cardPanel.add(journalView, CARD_JOURNAL);
@@ -76,31 +76,38 @@ public class AppWindow extends JFrame {
         showDashboard();
     }
 
+    // Methods to switch between different views in the CardLayout and refresh data when switching to the dashboard
     public void showDashboard() {
         cardLayout.show(cardPanel, CARD_DASHBOARD);
         dashboardFrame.refreshDashboard();
     }
 
+    // Method to show the Chart of Accounts view when selected from the sidebar menu
     public void showChartOfAccounts() {
         cardLayout.show(cardPanel, CARD_COA);
     }
 
+    // Method to show the Journal Entry view and refresh its data when displayed
     public void showJournalEntry() {
         cardLayout.show(cardPanel, CARD_JOURNAL);
     }
 
+    // Method to show the Ledger view and refresh its data when displayed
     public void showLedger() {
         cardLayout.show(cardPanel, CARD_LEDGER);
     }
 
+    // Method to show the Trial Balance view and refresh its data from the Ledger when displayed
     public void showTrialBalance() {
         cardLayout.show(cardPanel, CARD_TRIAL_BALANCE);
     }
 
+    // Method to show the Financial Reports view and refresh its data from the Ledger when displayed
     public void showFinancialReports() {
         cardLayout.show(cardPanel, CARD_FINANCIAL_REPORTS);
     }
 
+    // Getter for the Ledger frame to allow other views (like Trial Balance and Financial Reports) to access latest ledger data for calculations and display
     public ledger getLedgerFrame() {
         return ledgerFrame;
     }

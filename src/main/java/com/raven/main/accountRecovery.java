@@ -12,10 +12,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Account recovery panel: user enters email and new password to reset password.
- * Layout and styling match logInPage (background, card, WorkSans, rounded inputs).
- */
+    // Account Recovery Panel for resetting user passwords
 public class accountRecovery extends JPanel {
 
     private RoundedPanel card;
@@ -30,9 +27,11 @@ public class accountRecovery extends JPanel {
     public accountRecovery() {
         setLayout(new BorderLayout());
 
+        // Load custom fonts
         workSansRegular = loadFont("/fonts/Work_Sans/static/WorkSans-Regular.ttf", 14f);
         workSansBold = loadFont("/fonts/Work_Sans/static/WorkSans-Bold.ttf", 14f);
 
+        // Background
         BackgroundPanel backgroundPanel = new BackgroundPanel("/icon/bg3.jpg");
         add(backgroundPanel, BorderLayout.CENTER);
 
@@ -53,6 +52,7 @@ public class accountRecovery extends JPanel {
         logoLabel.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(logoLabel, "alignx center, wrap 0");
 
+        // Title and Subtitle
         JLabel title = new JLabel("Account Recovery");
         title.setFont(workSansBold.deriveFont(36f));
         title.setHorizontalAlignment(SwingConstants.CENTER);
@@ -63,23 +63,28 @@ public class accountRecovery extends JPanel {
         subtitle.setHorizontalAlignment(SwingConstants.CENTER);
         card.add(subtitle, "align center, span, wrap 20");
 
+        // Input fields with icons
         Image emailIcon = new ImageIcon(getClass().getResource("/icon/email.png")).getImage();
         Image passwordIcon = new ImageIcon(getClass().getResource("/icon/key.png")).getImage();
         Image eyeOpen = new ImageIcon(getClass().getResource("/icon/eyeOpen.png")).getImage();
         Image eyeClosed = new ImageIcon(getClass().getResource("/icon/eyeClosed.png")).getImage();
 
+        // Email field
         emailField = new IconTextField("Email", emailIcon);
         emailField.setFont(workSansRegular.deriveFont(14f));
         card.add(emailField, "w 320!, h 40!, align center");
 
+        // Password field
         passwordField = new TogglePasswordField("Password", passwordIcon, eyeOpen, eyeClosed);
         passwordField.setFont(workSansRegular.deriveFont(14f));
         card.add(passwordField, "w 320!, h 40!, align center, wrap 4");
 
+        // Confirm Password field
         confirmPasswordField = new TogglePasswordField("Confirm Password", passwordIcon, eyeOpen, eyeClosed);
         confirmPasswordField.setFont(workSansRegular.deriveFont(14f));
         card.add(confirmPasswordField, "w 320!, h 40!, align center, wrap 20");
 
+        // Confirm button
         confirmBtn = new RoundedButton("Reset Password");
         confirmBtn.setFont(workSansBold.deriveFont(20f));
         confirmBtn.setBackground(new Color(33, 150, 243));
@@ -88,6 +93,7 @@ public class accountRecovery extends JPanel {
         confirmBtn.setEnabled(false);
         card.add(confirmBtn, "w 320!, h 40!, align center, wrap 20");
 
+        // Enable confirm button only when passwords match and are not empty
         updateConfirmButtonState();
         passwordField.getDocument().addDocumentListener(new javax.swing.event.DocumentListener() {
             @Override
@@ -108,6 +114,7 @@ public class accountRecovery extends JPanel {
 
         confirmBtn.addActionListener(e -> performReset());
 
+        // Footer with back to login link
         JPanel footerPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 4, 0));
         footerPanel.setOpaque(false);
         JLabel footerText = new JLabel("Remember your password?");
@@ -130,6 +137,7 @@ public class accountRecovery extends JPanel {
         card.add(footerPanel, "align center, wrap, gapbottom 30");
     }
 
+    // Enable the confirm button only when password fields are not empty and match
     private void updateConfirmButtonState() {
         String pwd = new String(passwordField.getPassword());
         String confirm = new String(confirmPasswordField.getPassword());
@@ -137,6 +145,7 @@ public class accountRecovery extends JPanel {
         confirmBtn.setEnabled(match);
     }
 
+    // Perform the password reset operation
     private void performReset() {
         String email = emailField.getText().trim();
         String password = new String(passwordField.getPassword());
@@ -160,10 +169,12 @@ public class accountRecovery extends JPanel {
 
         confirmBtn.setEnabled(false);
 
+        // Run database operations in a background
         new Thread(() -> {
             boolean success = false;
             String errorMessage = null;
 
+            // Check if email exists and update password
             try (Connection conn = DBConnection.connect()) {
                 try (PreparedStatement check = conn.prepareStatement("SELECT id FROM users WHERE email = ?")) {
                     check.setString(1, email);
@@ -183,12 +194,13 @@ public class accountRecovery extends JPanel {
                 }
             } catch (SQLException ex) {
                 ex.printStackTrace();
-                errorMessage = "A database error occurred. Please try again.";
+                errorMessage = "database error occurred";
             }
 
             final boolean ok = success;
             final String err = errorMessage;
 
+            // Update UI on the Event Dispatch Thread
             SwingUtilities.invokeLater(() -> {
                 confirmBtn.setEnabled(true);
                 if (ok) {
@@ -206,6 +218,7 @@ public class accountRecovery extends JPanel {
         }).start();
     }
 
+    // Load custom font from resources
     private Font loadFont(String path, float size) {
         try (InputStream stream = getClass().getResourceAsStream(path)) {
             if (stream != null) {
@@ -218,6 +231,7 @@ public class accountRecovery extends JPanel {
         return new Font("Arial", Font.PLAIN, (int) size);
     }
 
+    // Custom panel with rounded corners and layered borders
     private static class RoundedPanel extends JPanel {
         private final int cornerRadius = 20;
 
@@ -225,6 +239,7 @@ public class accountRecovery extends JPanel {
             setOpaque(false);
         }
 
+        // Draw layered borders and transparent background
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -247,14 +262,17 @@ public class accountRecovery extends JPanel {
         }
     }
 
+    // Panel that draws a background image scaled to fit
     private static class BackgroundPanel extends JPanel {
         private final Image backgroundImage;
 
+        // Load background image from resources
         BackgroundPanel(String resourcePath) {
             backgroundImage = new ImageIcon(accountRecovery.class.getResource(resourcePath)).getImage();
             setLayout(new MigLayout("fill, center", "[grow]", "[grow]"));
         }
 
+        // Draw the background image scaled to fill the panel
         @Override
         protected void paintComponent(Graphics g) {
             super.paintComponent(g);
@@ -262,12 +280,14 @@ public class accountRecovery extends JPanel {
         }
     }
 
+    // Custom JTextField with icon and placeholder text
     private class IconTextField extends JTextField {
         private final String placeholder;
         private final Image icon;
         private final int arc = 20, iconSize = 20, iconPadding = 10;
         private boolean focused;
 
+        // Implemented the text field with placeholder and icon and add focus listeners for styling
         IconTextField(String placeholder, Image icon) {
             this.placeholder = placeholder;
             this.icon = icon;
@@ -281,6 +301,7 @@ public class accountRecovery extends JPanel {
                     repaint();
                 }
 
+                // When focus is lost, update and repaint to show the unfocused style
                 @Override
                 public void focusLost(java.awt.event.FocusEvent e) {
                     focused = false;
@@ -289,12 +310,14 @@ public class accountRecovery extends JPanel {
             });
         }
 
+        // Inset to provide space for the icon on the left
         @Override
         public Insets getInsets() {
             Insets insets = super.getInsets();
             return new Insets(insets.top, iconSize + iconPadding + 5, insets.bottom, insets.right);
         }
 
+        // 
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -318,6 +341,7 @@ public class accountRecovery extends JPanel {
         }
     }
 
+    // Custom JPasswordField that includes icon, placeholder text, and toggle for showing/hiding the password
     private class TogglePasswordField extends JPasswordField {
         private final String placeholder;
         private final Image leftIcon, eyeOpen, eyeClosed;
@@ -325,6 +349,7 @@ public class accountRecovery extends JPanel {
         private final int arc = 20, iconSize = 20, iconPadding = 10;
         private boolean focused;
 
+        // Added the password field with placeholder, left icon, and eye icon for toggling visibility. Added listeners for focus and mouse events to handle styling and toggling.
         TogglePasswordField(String placeholder, Image leftIcon, Image eyeOpen, Image eyeClosed) {
             this.placeholder = placeholder;
             this.leftIcon = leftIcon;
@@ -341,6 +366,7 @@ public class accountRecovery extends JPanel {
                     repaint();
                 }
 
+                // When focus is lost, update and repaint to show the unfocused style
                 @Override
                 public void focusLost(java.awt.event.FocusEvent e) {
                     focused = false;
@@ -367,6 +393,7 @@ public class accountRecovery extends JPanel {
             });
         }
 
+        // Inset to provide space for the left icon and the eye toggle icon on the right
         @Override
         public Insets getInsets() {
             Insets insets = super.getInsets();
@@ -375,6 +402,7 @@ public class accountRecovery extends JPanel {
             return new Insets(insets.top, left, insets.bottom, right);
         }
 
+        // Custom painting to draw the rounded background, left icon, eye toggle icon, and placeholder text when empty. Also draws a focus border when focused.
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();
@@ -403,6 +431,7 @@ public class accountRecovery extends JPanel {
         }
     }
 
+    // Custom JButton with rounded corners and hover/press effects
     private static class RoundedButton extends JButton {
         private final int arc = 20;
 
@@ -414,6 +443,7 @@ public class accountRecovery extends JPanel {
             setContentAreaFilled(false);
         }
 
+        // Changes background color based on button state and centers the text.
         @Override
         protected void paintComponent(Graphics g) {
             Graphics2D g2 = (Graphics2D) g.create();

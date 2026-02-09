@@ -5,24 +5,25 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 
-/**
- * Computes total assets, liabilities, and equity from Chart_of_Accounts and journal entries
- * for the current user (all-time balances). Used by dashboard metric cards.
- */
+// Utility class for computing financial metrics for the dashboard, such as total assets, liabilities, equity, and total revenue based on the current user's chart of accounts and journal entries
 public final class DashboardMetrics {
 
     private DashboardMetrics() {}
 
-    /** Returns { totalAssets, totalLiabilities, totalEquity }. Equity is not derived; sum of equity account balances. */
+    // Returns { totalAssets, totalLiabilities, totalEquity }. Equity is not derived; sum of equity account balances
     public static double[] computeTotals() {
         double totalAssets = 0, totalLiabilities = 0, totalEquity = 0;
         Integer userId = Session.getUserId();
         if (userId == null) return new double[]{0, 0, 0};
 
+        // Compute total assets, liabilities, and equity by iterating through the user's chart of accounts and summing the balances of accounts based on their type (asset, liability, equity). The method retrieves the account names and types from the database, calculates the balance for each account using journal entry lines, and categorizes the balances into total assets, total liabilities, and total equity based on the account type.
         try (Connection conn = DBConnection.connect()) {
             String accountsSql = "SELECT account_name, account_type FROM Chart_of_Accounts WHERE user_id = ?";
+
+            // Iterate through the user's chart of accounts and calculate the balance for each account, categorizing it into total assets, liabilities, or equity based on the account type. The method uses a helper method getAccountBalance to calculate the balance for each account by summing the debit and credit amounts from journal entry lines associated with that account.
             try (PreparedStatement psAcc = conn.prepareStatement(accountsSql)) {
                 psAcc.setInt(1, userId);
+
                 try (ResultSet rsAcc = psAcc.executeQuery()) {
                     while (rsAcc.next()) {
                         String accName = rsAcc.getString("account_name");
@@ -45,7 +46,7 @@ public final class DashboardMetrics {
         return new double[]{totalAssets, totalLiabilities, totalEquity};
     }
 
-    /** Total revenue from Income Statement: sum of all revenue account balances from journal entries. */
+    // Total revenue from Income Statement: sum of all revenue account balances from journal entries
     public static double computeTotalRevenue() {
         double total = 0;
         Integer userId = Session.getUserId();
